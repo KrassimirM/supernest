@@ -1696,6 +1696,7 @@ async function _runNesting({ pieces, sheets, settings }) {
 
   // ── Сортиране: най-голямото парче първо ───────────────────
   const sorted = [...pieces].sort((a, b) => b.bbox.w * b.bbox.h - a.bbox.w * a.bbox.h);
+  const sheetQueue = _expandSheetQueue(sheets);
 
   const allSheets = [];
   let remaining   = [...sorted];
@@ -1715,7 +1716,9 @@ async function _runNesting({ pieces, sheets, settings }) {
     const elapsedSec = Math.round((Date.now() - startedAt) / 1000);
     const msg = reason === 'time'
       ? `Готово по времеви лимит (${elapsedSec} сек.)`
-      : 'Готово!';
+      : reason === 'sheets'
+        ? 'Готово — няма повече налични листа'
+        : 'Готово!';
 
     _prog(100, msg);
     _log(`✓ ${totalPlaced}/${total} детайла · ${allSheets.length} листа · ${overallEfficiency.toFixed(1)}% ефективност · ${elapsedSec} сек.`);
@@ -1729,6 +1732,7 @@ async function _runNesting({ pieces, sheets, settings }) {
         unplaced: remaining,
         overallEfficiency,
         stoppedByTime: reason === 'time',
+        stoppedBySheets: reason === 'sheets',
         elapsedSec,
         timeLimitSec: Math.round(timeLimitMs / 1000),
       }
@@ -1737,11 +1741,11 @@ async function _runNesting({ pieces, sheets, settings }) {
 
   // ── Основен цикъл: лист по лист ──────────────────────────
   outer:
-  while (remaining.length > 0 && sheetIdx < 50) {
+  while (remaining.length > 0 && sheetIdx < sheetQueue.length) {
     if (_stopped) { _log('Спряно от потребителя'); return; }
     if (timeUp()) { stoppedByTime = true; break; }
 
-    const sheetDef = sheets[Math.min(sheetIdx, sheets.length - 1)];
+    const sheetDef = sheetQueue[sheetIdx];
     const sw = sheetDef.width, sh = sheetDef.height;
     _log(`Лист ${sheetIdx + 1} (${sw}×${sh}мм) — ${remaining.length} детайла...`);
 
@@ -1816,9 +1820,27 @@ async function _runNesting({ pieces, sheets, settings }) {
   }
 
   await _yield();
-  finish(stoppedByTime ? 'time' : 'done');
+  finish(stoppedByTime ? 'time' : (remaining.length ? 'sheets' : 'done'));
 }
 
+
+
+function _expandSheetQueue(sheets) {
+  const queue = [];
+  for (const sheet of Array.isArray(sheets) ? sheets : []) {
+    const qty = Math.max(1, Math.floor(Number(sheet.qty) || 1));
+    for (let copy = 0; copy < qty; copy++) {
+      queue.push({
+        ...sheet,
+        id: `${sheet.id}_${copy + 1}`,
+        sourceSheetId: sheet.id,
+        copyNo: copy + 1,
+        qty: 1,
+      });
+    }
+  }
+  return queue;
+}
 
 // ══════════════════════════════════════════════════════════════
 // ПОЗИЦИОНИРАНЕ — NFP Bottom-Left Fill
@@ -3981,8 +4003,14 @@ const Step2 = (() => {
     _set('s2-st-placed', `${r.totalPlaced} / ${r.totalPieces}`);
     const u = document.getElementById('s2-st-unplaced');
     if (u) {
-      u.textContent = r.unplaced?.length ? `⚠ ${r.unplaced.length} детайла не се поместиха` : '✓ Всички поставени';
-      u.style.color = r.unplaced?.length ? 'var(--orange)' : 'var(--accent)';
+      const unplacedCount = r.unplaced?.length || 0;
+      const reason = r.stoppedByTime
+        ? ' (изтече времето)'
+        : r.stoppedBySheets
+          ? ' (няма налични листа)'
+          : '';
+      u.textContent = unplacedCount ? `⚠ ${unplacedCount} детайла не се поместиха${reason}` : '✓ Всички поставени';
+      u.style.color = unplacedCount ? 'var(--orange)' : 'var(--accent)';
     }
     const bd = document.getElementById('s2-st-breakdown');
     if (bd) bd.innerHTML = `

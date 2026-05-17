@@ -106,6 +106,7 @@ async function _runNesting({ pieces, sheets, settings }) {
 
   // ── Сортиране: най-голямото парче първо ───────────────────
   const sorted = [...pieces].sort((a, b) => b.bbox.w * b.bbox.h - a.bbox.w * a.bbox.h);
+  const sheetQueue = _expandSheetQueue(sheets);
 
   const allSheets = [];
   let remaining   = [...sorted];
@@ -125,7 +126,9 @@ async function _runNesting({ pieces, sheets, settings }) {
     const elapsedSec = Math.round((Date.now() - startedAt) / 1000);
     const msg = reason === 'time'
       ? `Готово по времеви лимит (${elapsedSec} сек.)`
-      : 'Готово!';
+      : reason === 'sheets'
+        ? 'Готово — няма повече налични листа'
+        : 'Готово!';
 
     _prog(100, msg);
     _log(`✓ ${totalPlaced}/${total} детайла · ${allSheets.length} листа · ${overallEfficiency.toFixed(1)}% ефективност · ${elapsedSec} сек.`);
@@ -139,6 +142,7 @@ async function _runNesting({ pieces, sheets, settings }) {
         unplaced: remaining,
         overallEfficiency,
         stoppedByTime: reason === 'time',
+        stoppedBySheets: reason === 'sheets',
         elapsedSec,
         timeLimitSec: Math.round(timeLimitMs / 1000),
       }
@@ -147,11 +151,11 @@ async function _runNesting({ pieces, sheets, settings }) {
 
   // ── Основен цикъл: лист по лист ──────────────────────────
   outer:
-  while (remaining.length > 0 && sheetIdx < 50) {
+  while (remaining.length > 0 && sheetIdx < sheetQueue.length) {
     if (_stopped) { _log('Спряно от потребителя'); return; }
     if (timeUp()) { stoppedByTime = true; break; }
 
-    const sheetDef = sheets[Math.min(sheetIdx, sheets.length - 1)];
+    const sheetDef = sheetQueue[sheetIdx];
     const sw = sheetDef.width, sh = sheetDef.height;
     _log(`Лист ${sheetIdx + 1} (${sw}×${sh}мм) — ${remaining.length} детайла...`);
 
@@ -226,9 +230,27 @@ async function _runNesting({ pieces, sheets, settings }) {
   }
 
   await _yield();
-  finish(stoppedByTime ? 'time' : 'done');
+  finish(stoppedByTime ? 'time' : (remaining.length ? 'sheets' : 'done'));
 }
 
+
+
+function _expandSheetQueue(sheets) {
+  const queue = [];
+  for (const sheet of Array.isArray(sheets) ? sheets : []) {
+    const qty = Math.max(1, Math.floor(Number(sheet.qty) || 1));
+    for (let copy = 0; copy < qty; copy++) {
+      queue.push({
+        ...sheet,
+        id: `${sheet.id}_${copy + 1}`,
+        sourceSheetId: sheet.id,
+        copyNo: copy + 1,
+        qty: 1,
+      });
+    }
+  }
+  return queue;
+}
 
 // ══════════════════════════════════════════════════════════════
 // ПОЗИЦИОНИРАНЕ — NFP Bottom-Left Fill
