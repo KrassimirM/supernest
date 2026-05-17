@@ -1,0 +1,4735 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NestCut — NFP Нестинг</title>
+<style>
+/* ── Reset & Base ───────────────────────────────────────── */
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f2f2f0;
+  --bg2:#e8e8e5;
+  --bg3:#dfdedd;
+  --bg4:#d5d5d2;
+  --bg-panel:#ffffff;
+  --border:#d8d8d4;
+  --border2:#c8c8c4;
+  --text:#1a1a18;
+  --text2:#5a5a56;
+  --text3:#9a9a95;
+  --accent:#5dbd2e;
+  --accent2:#4aa825;
+  --accent-text:#fff;
+  --red:#d4455a;
+  --orange:#e87820;
+  --blue:#3a7fd4;
+  --r:6px;
+  --r2:10px;
+  --header-h:48px;
+  --steps-h:52px;
+}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:13px;height:100vh;overflow:hidden}
+
+/* ── App shell ──────────────────────────────────────────── */
+.app{display:grid;grid-template-rows:var(--header-h) var(--steps-h) 1fr;height:100vh}
+
+/* ── Header ─────────────────────────────────────────────── */
+.header{background:var(--bg-panel);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:16px;z-index:100}
+.logo{font-size:18px;font-weight:700;letter-spacing:-0.5px}
+.logo span.amp{color:var(--accent)}
+.logo span.cut{color:var(--text)}
+.project-name{display:flex;align-items:center;gap:6px;color:var(--text2);font-size:13px;cursor:pointer;padding:4px 8px;border-radius:var(--r);transition:background .15s}
+.project-name:hover{background:var(--bg2)}
+.project-name input{border:none;outline:none;background:transparent;font-size:13px;color:var(--text);width:180px;cursor:text}
+.header-right{margin-left:auto;display:flex;gap:8px;align-items:center}
+.hbtn{background:none;border:1px solid var(--border);border-radius:var(--r);padding:5px 10px;font-size:12px;cursor:pointer;color:var(--text2);transition:all .15s}
+.hbtn:hover{background:var(--bg2);color:var(--text)}
+
+/* ── Step Header (SuperNest style) ───────────────────────── */
+.steps-header{display:flex;border-bottom:1px solid var(--border);background:var(--bg-panel);position:relative}
+.step-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:10px;border:none;background:transparent;cursor:pointer;font-size:14px;font-weight:500;color:var(--text3);padding:0 20px;clip-path:polygon(0 0, calc(100% - 16px) 0, 100% 50%, calc(100% - 16px) 100%, 0 100%, 16px 50%);transition:background .2s,color .2s;border-right:1px solid var(--border);position:relative}
+.step-btn:first-child{clip-path:polygon(0 0, calc(100% - 16px) 0, 100% 50%, calc(100% - 16px) 100%, 0 100%)}
+.step-btn.active{background:var(--accent);color:#fff}
+.step-btn.done{background:var(--bg2);color:var(--text2)}
+.step-num{width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,0.1);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
+.step-btn.active .step-num{background:rgba(255,255,255,0.3)}
+.step-btn.done .step-num{background:var(--accent);color:#fff}
+
+/* ── Main layout ────────────────────────────────────────── */
+.main{display:grid;overflow:hidden;height:100%}
+.sidebar-layout{grid-template-columns:1fr}
+.s2-layout{grid-template-columns:1fr 280px}
+
+/* ── Sidebar ─────────────────────────────────────────────── */
+.sidebar{background:var(--bg-panel);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.sidebar-section{border-bottom:1px solid var(--border);padding:14px 16px}
+.sidebar-section:last-child{border-bottom:none;flex:1;overflow-y:auto}
+.sec-title{font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
+
+/* ── Content pane ────────────────────────────────────────── */
+.content{display:flex;flex-direction:column;overflow:hidden}
+
+/* ── upbtn ───────────────────────────────────────────────── */
+.upbtn{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border:1px solid var(--border2);border-radius:20px;background:var(--bg-panel);cursor:pointer;font-size:12px;color:var(--text);font-family:inherit;transition:all .15s;white-space:nowrap}
+.upbtn:hover{border-color:var(--accent);color:var(--accent)}
+
+/* ── Empty state ─────────────────────────────────────────── */
+.empty-state{text-align:center;padding:32px 16px;color:var(--text3)}
+.empty-icon{font-size:32px;margin-bottom:10px;opacity:0.4}
+.empty-sub{font-size:11px;margin-top:4px}
+
+/* ════════════════════════════════════════════════════════
+   STEP 1 — IMPORT + SET
+════════════════════════════════════════════════════════ */
+.s1-shell{display:flex;flex-direction:column;height:100%;overflow:hidden;background:var(--bg)}
+.s1-tabbar{display:flex;align-items:stretch;background:var(--bg-panel);border-bottom:1px solid var(--border);flex-shrink:0}
+.s1-tab{padding:0 22px;height:44px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:500;color:var(--text3);font-family:inherit;border-bottom:2px solid transparent;transition:all .15s;margin-bottom:-1px;white-space:nowrap}
+.s1-tab:hover{color:var(--text)}
+.s1-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.s1-panel{flex:1;overflow:hidden;display:flex;flex-direction:column}
+.s1-panel[hidden]{display:none}
+
+/* Import panel */
+.s1-import-toolbar{padding:10px 20px;background:var(--bg-panel);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-shrink:0}
+.s1-import-body{flex:1;overflow-y:auto;padding:20px}
+.s1-cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+.s1-file-card{background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--r2);overflow:hidden;transition:box-shadow .15s}
+.s1-file-card:hover{box-shadow:0 2px 12px rgba(0,0,0,.08)}
+.s1-card-header{padding:10px 12px;border-bottom:1px solid var(--border);font-size:12px;font-weight:600;display:flex;align-items:center;gap:8px;overflow:hidden}
+.s1-card-header span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
+.s1-card-thumbs{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:8px}
+.s1-card-thumb{aspect-ratio:1;background:var(--bg2);border-radius:3px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.s1-card-footer{padding:8px 12px;display:flex;align-items:center;justify-content:space-between}
+.s1-card-badge{background:var(--accent);color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px}
+.s1-card-menu{background:none;border:none;cursor:pointer;color:var(--text3);font-size:18px;padding:2px 6px;border-radius:3px;line-height:1}
+.s1-card-menu:hover{background:var(--bg3);color:var(--text)}
+.s1-big-drop{display:flex;flex-direction:column;align-items:center;justify-content:center;border:2px dashed var(--border2);border-radius:var(--r2);min-height:280px;cursor:pointer;transition:all .2s;position:relative;background:var(--bg-panel)}
+.s1-big-drop:hover,.s1-big-drop.drag-over{border-color:var(--accent);background:rgba(93,189,46,.03)}
+.upload-btn-big{background:var(--accent);color:#fff;border:none;border-radius:24px;padding:9px 22px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:background .15s;position:relative;z-index:1}
+.upload-btn-big:hover{background:var(--accent2)}
+
+/* Set panel */
+.s1-set-toolbar{padding:8px 20px;background:var(--bg-panel);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-shrink:0}
+.s1-table-header{display:flex;align-items:center;padding:0 20px;height:36px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0}
+.s1-th{font-size:10px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--text3)}
+.s1-th-name{flex:1;min-width:0}
+.s1-th-qty{width:280px;flex-shrink:0}
+.s1-th-dim{width:110px;flex-shrink:0}
+.s1-table-body{flex:1;overflow-y:auto}
+.s1-set-row{display:flex;align-items:center;padding:10px 20px;border-bottom:1px solid var(--border);min-height:70px}
+.s1-set-row:last-child{border-bottom:none}
+.s1-set-row:hover{background:rgba(0,0,0,.015)}
+.s1-set-thumb{width:56px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.s1-set-name{flex:1;min-width:0;padding-right:16px}
+.s1-set-name-text{font-size:13px;font-weight:500;display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden}
+.s1-edit-icon{opacity:0;color:var(--text3);font-size:11px;cursor:pointer;flex-shrink:0;transition:opacity .15s}
+.s1-set-row:hover .s1-edit-icon{opacity:1}
+.s1-set-meta{font-size:11px;color:var(--text3);margin-top:2px}
+.s1-set-qty{width:280px;flex-shrink:0;display:flex;align-items:center;gap:3px}
+.s1-set-dim{width:110px;flex-shrink:0;font-size:13px;color:var(--text2)}
+.s1-set-settings{width:120px;flex-shrink:0;display:flex;align-items:center;gap:4px}
+.s1-set-icon{width:26px;height:26px;background:none;border:1px solid transparent;cursor:pointer;color:var(--text3);font-size:14px;border-radius:4px;display:flex;align-items:center;justify-content:center;transition:all .12s}
+.s1-set-icon:hover{border-color:var(--border2);background:var(--bg2);color:var(--text)}
+.s1-set-del{width:32px;flex-shrink:0;display:flex;justify-content:center}
+/* Qty pill style */
+.s1-qty-wrap{display:flex;align-items:center;gap:3px}
+.s1-qty-btn{width:26px;height:26px;border:1px solid var(--border2);border-radius:50%;background:var(--bg-panel);cursor:pointer;font-size:14px;color:var(--text2);display:flex;align-items:center;justify-content:center;transition:all .12s;font-family:inherit;line-height:1}
+.s1-qty-btn:hover{border-color:var(--accent);color:var(--accent)}
+.s1-qty-input{width:46px;height:28px;border:1px solid var(--border);border-radius:14px;text-align:center;font-size:13px;background:var(--bg-panel);color:var(--text);font-family:inherit;outline:none}
+.s1-qty-input:focus{border-color:var(--accent)}
+.s1-qty-pill{padding:4px 10px;border:1px solid var(--border);border-radius:13px;font-size:12px;font-weight:600;color:var(--text2);background:var(--bg2);cursor:pointer;transition:all .12s;font-family:inherit}
+.s1-qty-pill:hover{border-color:var(--accent);color:var(--accent)}
+/* Rename input */
+.rename-input{font-size:13px;font-weight:500;border:none;border-bottom:1px solid var(--accent);padding:0 2px;outline:none;background:transparent;color:var(--text);min-width:80px}
+/* Drag overlay */
+#s1-drop-overlay{position:fixed;inset:0;background:rgba(93,189,46,.12);backdrop-filter:blur(2px);z-index:200;display:none;align-items:center;justify-content:center;pointer-events:none}
+#s1-drop-overlay.active{display:flex}
+.s1-drop-overlay-inner{background:var(--bg-panel);border:2px dashed var(--accent);border-radius:var(--r2);padding:40px 60px;text-align:center;color:var(--accent)}
+
+/* ── Sheets list ─────────────────────────────────────────── */
+.sheet-row{display:flex;align-items:center;gap:10px;padding:8px 16px;border-bottom:1px solid var(--border)}
+.sheet-row:last-child{border-bottom:none}
+.sheet-icon{font-size:20px;color:var(--text3);flex-shrink:0}
+.sheet-info{flex:1}
+.sheet-name-input{border:none;font-size:12px;font-weight:500;background:transparent;width:100%;outline:none;color:var(--text);cursor:text;margin-bottom:4px}
+.sheet-name-input:focus{border-bottom:1px solid var(--accent)}
+.sheet-dims-row{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text3)}
+.sheet-dim{width:60px;border:1px solid var(--border);border-radius:4px;padding:2px 4px;font-size:11px;text-align:center;background:var(--bg-panel);color:var(--text)}
+.sheet-dim:focus{outline:none;border-color:var(--accent)}
+.sheet-qty-ctrl{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text3)}
+.qty-input{width:36px;height:22px;border:1px solid var(--border);border-radius:4px;text-align:center;font-size:12px;background:var(--bg-panel);color:var(--text);font-family:inherit}
+.qty-input:focus{outline:none;border-color:var(--accent)}
+.part-del-btn{width:24px;height:24px;border:none;background:none;cursor:pointer;color:var(--text3);font-size:16px;border-radius:var(--r);transition:all .12s;display:flex;align-items:center;justify-content:center}
+.part-del-btn:hover{background:rgba(212,69,90,0.1);color:var(--red)}
+.prev-row{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);font-size:11px;color:var(--text2)}
+.prev-row:last-child{border-bottom:none}
+.prev-row b{font-weight:500;color:var(--text)}
+
+/* ── Step 2 — tab layout ─────────────────────────────────── */
+.s2-tabbar{display:flex;border-bottom:1px solid var(--border);background:var(--bg-panel);flex-shrink:0}
+.s2-tab{padding:10px 18px;border:none;background:none;cursor:pointer;font-size:13px;color:var(--text2);font-family:inherit;border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap;margin-bottom:-1px}
+.s2-tab:hover{color:var(--text);background:var(--bg2)}
+.s2-tab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600;background:var(--bg-panel)}
+.s2-panel{flex:1;overflow-y:auto;display:flex;flex-direction:column;min-height:0}
+.s2-panel[hidden]{display:none}
+
+/* Nest panel — canvas */
+.s2-nest-panel{overflow:hidden!important;background:#141412}
+.s2-canvas-toolbar{display:flex;align-items:center;gap:6px;padding:6px 10px;background:#1e1e1c;border-bottom:1px solid #2a2a28;flex-shrink:0}
+.s2-icon-btn{background:#2a2a28;border:1px solid #3a3a38;color:#aaa;border-radius:4px;width:26px;height:26px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0}
+.s2-icon-btn:hover{background:#3a3a38;color:#fff}
+.s2-canvas-wrap{flex:1;overflow:hidden;cursor:grab;position:relative;min-height:0}
+.s2-canvas-wrap:active{cursor:grabbing}
+#s2-canvas{display:block;width:100%;height:100%}
+.s2-canvas-empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;color:#fff}
+.s2-canvas-empty[hidden]{display:none}
+.s2-canvas-status{padding:4px 12px;background:#1a1a18;border-top:1px solid #2a2a28;font-size:10px;color:#555;display:flex;align-items:center;flex-shrink:0;font-family:monospace}
+
+/* Sheets panel */
+.s2-sheets-toolbar{padding:10px 16px;border-bottom:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;align-items:center;flex-shrink:0;background:var(--bg-panel)}
+.sheets-list{flex:1;overflow-y:auto}
+
+/* Settings panel */
+.settings-panel{padding:18px 20px;overflow-y:auto;flex:1;background:var(--bg-panel)}
+.settings-section-title{font-size:10px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;color:var(--text3);margin-bottom:10px}
+.settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:4px}
+.sfield{display:flex;flex-direction:column;gap:4px}
+.sfield label{font-size:11px;color:var(--text3);font-weight:500}
+.sfield input,.sfield select{border:1px solid var(--border);border-radius:var(--r);padding:6px 8px;font-size:12px;background:var(--bg-panel);color:var(--text)}
+.sfield input:focus,.sfield select:focus{outline:none;border-color:var(--accent)}
+.quality-track{position:relative;margin:6px 0}
+.quality-track input[type=range]{width:100%;accent-color:var(--accent)}
+.quality-labels{display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-top:4px}
+.quality-val{font-size:11px;font-weight:500;color:var(--accent);text-align:right;margin-top:2px}
+
+/* Right sidebar sections */
+.s2-right-section{padding:12px 14px;border-bottom:1px solid var(--border)}
+.s2-right-section:last-child{border-bottom:none}
+.s2-right-title{font-size:10px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;color:var(--text3);margin-bottom:10px}
+
+/* Statistics panel */
+.s2-stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border-bottom:1px solid var(--border);flex-shrink:0}
+.s2-stat-card{background:var(--bg-panel);padding:16px 18px}
+.s2-stat-val{font-size:26px;font-weight:600;color:var(--text);line-height:1}
+.s2-stat-lbl{font-size:11px;color:var(--text3);margin-top:5px;text-transform:uppercase;letter-spacing:.5px}
+.s2-sheet-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px}
+.s2-sheet-row:last-child{border-bottom:none}
+.s2-eff-bar{height:4px;background:var(--bg3);border-radius:2px;margin-top:4px;overflow:hidden}
+.s2-eff-fill{height:100%;background:var(--accent);border-radius:2px;transition:width .4s}
+
+/* Progress & Log */
+.progress-wrap{padding:10px 16px;border-top:1px solid var(--border);background:var(--bg-panel)}
+.progress-track{background:var(--bg3);border-radius:3px;height:4px;overflow:hidden;margin-bottom:6px}
+.progress-bar{height:100%;background:var(--accent);border-radius:3px;transition:width .3s;width:0}
+.progress-label{font-size:11px;color:var(--text3)}
+.log-area{max-height:70px;overflow-y:auto;font-size:10px;color:var(--text3);font-family:monospace;line-height:1.7;padding:0 16px 10px;background:var(--bg-panel)}
+
+/* ── Step 3 — Canvas area ────────────────────────────────── */
+.s3-layout{display:grid;grid-template-columns:1fr 240px;grid-template-rows:auto 1fr auto;height:100%}
+.s3-toolbar{grid-column:1/-1;background:var(--bg);border-bottom:1px solid var(--border);padding:8px 14px;display:flex;gap:6px;align-items:center}
+.tab{padding:4px 12px;border:1px solid var(--border);border-radius:var(--r);font-size:12px;cursor:pointer;background:var(--bg);color:var(--text2);font-family:inherit;transition:all .15s}
+.tab:hover{border-color:var(--accent);color:var(--accent)}
+.tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.tab-sub{font-size:10px;opacity:0.7}
+.s3-canvas-wrap{background:#0d0d0c;overflow:hidden;cursor:grab;position:relative}
+.s3-canvas-wrap:active{cursor:grabbing}
+#s3-canvas{display:block;width:100%;height:100%}
+.s3-side{background:var(--bg);border-left:1px solid var(--border);overflow-y:auto;display:flex;flex-direction:column}
+.s3-bottom{grid-column:1/-1;background:var(--bg);border-top:1px solid var(--border)}
+
+/* ── Stats bar ───────────────────────────────────────────── */
+.stats-bar{display:grid;grid-template-columns:repeat(5,1fr);border-bottom:1px solid var(--border)}
+.stat-cell{padding:10px 14px;border-right:1px solid var(--border)}
+.stat-cell:last-child{border-right:none}
+.stat-val{font-size:18px;font-weight:600;color:var(--text)}
+.stat-lbl{font-size:10px;color:var(--text3);margin-top:2px;text-transform:uppercase;letter-spacing:0.5px}
+.stat-badge{font-size:11px;font-weight:600;padding:2px 8px;border-radius:3px}
+.stat-badge.ok{background:rgba(93,189,46,0.12);color:#3a9a1a}
+.stat-badge.warn{background:rgba(232,120,32,0.12);color:var(--orange)}
+
+/* ── Part detail ─────────────────────────────────────────── */
+.detail-panel{padding:14px}
+.detail-name{font-size:12px;font-weight:600;margin-bottom:10px;color:var(--text)}
+.detail-row{display:flex;justify-content:space-between;font-size:11px;padding:4px 0;border-bottom:1px solid var(--border);color:var(--text2)}
+.detail-row span:last-child{color:var(--text);font-weight:500}
+
+/* ── Export buttons ──────────────────────────────────────── */
+.export-panel{padding:14px;border-top:1px solid var(--border);margin-top:auto}
+.export-panel h4{font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:10px}
+.export-btns{display:flex;flex-direction:column;gap:6px}
+.export-btn{display:flex;align-items:center;gap:8px;padding:7px 12px;border:1px solid var(--border);border-radius:var(--r);background:var(--bg);cursor:pointer;font-size:12px;color:var(--text);transition:all .15s}
+.export-btn:hover{border-color:var(--accent);color:var(--accent);background:rgba(93,189,46,0.04)}
+
+/* ── Bottom nav bar ──────────────────────────────────────── */
+.bottom-nav{height:52px;display:flex;align-items:center}
+.bnav-left{flex:1;padding:0 16px}
+.bnav-left button{background:var(--bg3);border:none;border-radius:var(--r);padding:7px 16px;font-size:13px;cursor:pointer;color:var(--text2);display:flex;align-items:center;gap:6px;transition:all .15s}
+.bnav-left button:hover{background:var(--bg4);color:var(--text)}
+.bnav-right{flex:1;padding:0 16px;display:flex;justify-content:flex-end}
+.bnav-right button{background:var(--accent);color:#fff;border:none;border-radius:var(--r);padding:7px 20px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:background .15s}
+.bnav-right button:hover{background:var(--accent2)}
+.bnav-right button:disabled{background:var(--bg3);color:var(--text3);cursor:not-allowed}
+
+/* ── Form elements general ───────────────────────────────── */
+button.btn{background:var(--bg);border:1px solid var(--border2);border-radius:var(--r);padding:6px 12px;font-size:12px;cursor:pointer;color:var(--text);transition:all .15s;font-family:inherit}
+button.btn:hover{border-color:var(--accent);color:var(--accent)}
+button.btn.primary{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:600}
+button.btn.primary:hover{background:var(--accent2)}
+button.btn:disabled{opacity:0.5;cursor:not-allowed}
+input[type=number],input[type=text],select{font-family:inherit}
+
+/* ── Toast ───────────────────────────────────────────────── */
+#toast-container{position:fixed;bottom:70px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+.toast{background:#333;color:#fff;padding:10px 16px;border-radius:var(--r);font-size:13px;opacity:0;transform:translateY(8px);transition:all .25s;max-width:320px}
+.toast.show{opacity:1;transform:none}
+.toast.toast-ok{background:var(--accent)}
+.toast.toast-warn{background:var(--orange)}
+.toast.toast-error{background:var(--red)}
+
+/* ── Scrollbar ───────────────────────────────────────────── */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+
+/* ════════════════════════════════════════════════════════
+   STEP 1 — SET
+════════════════════════════════════════════════════════ */
+
+/* Toolbar */
+.upload-toolbar{background:var(--bg-panel);border-bottom:1px solid var(--border);padding:9px 14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex-shrink:0}
+.upload-toolbar-title{font-size:13px;font-weight:600;margin-right:4px}
+.upbtn{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border:1px solid var(--border2);border-radius:20px;background:var(--bg-panel);cursor:pointer;font-size:12px;color:var(--text);font-family:inherit;transition:all .15s;white-space:nowrap}
+.upbtn:hover{border-color:var(--accent);color:var(--accent)}
+
+/* Big drop zone (empty state) */
+.s1-big-drop{flex:1;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border:2px dashed var(--border2);margin:16px;border-radius:var(--r2);transition:all .2s;min-height:200px}
+.s1-big-drop:hover,.s1-big-drop.drag-over{border-color:var(--accent);background:rgba(93,189,46,.04)}
+.s1-big-drop-icon{margin-bottom:6px}
+.upload-btn-big{background:var(--accent);color:#fff;border:none;border-radius:24px;padding:9px 22px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:background .15s;position:relative;z-index:1}
+.upload-btn-big:hover{background:var(--accent2)}
+
+/* Full-screen drag overlay */
+#s1-drop-overlay{position:fixed;inset:0;background:rgba(93,189,46,.12);backdrop-filter:blur(2px);z-index:200;display:none;align-items:center;justify-content:center;pointer-events:none}
+#s1-drop-overlay.active{display:flex}
+.s1-drop-overlay-inner{background:var(--bg);border:2px dashed var(--accent);border-radius:var(--r2);padding:40px 60px;text-align:center;color:var(--accent)}
+
+/* Part rows */
+.part-row{display:flex;align-items:center;gap:9px;padding:7px 12px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .1s}
+.part-row:last-child{border-bottom:none}
+.part-row:hover{background:var(--bg2)}
+.part-row.selected{background:rgba(93,189,46,.08);border-left:2px solid var(--accent)}
+.part-thumb{width:44px;height:44px;flex-shrink:0;border:1px solid var(--border);border-radius:5px;background:var(--bg2);overflow:hidden;display:flex;align-items:center;justify-content:center}
+.part-info{flex:1;min-width:0}
+.part-name-row{display:flex;align-items:center;gap:5px;margin-bottom:3px}
+.part-name{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:text}
+.part-name:hover{text-decoration:underline dotted}
+.src-badge{font-size:9px;font-weight:700;letter-spacing:.5px;padding:1px 5px;border-radius:3px;flex-shrink:0}
+.src-badge.src-dxf{background:#e8f0ff;color:#3a6fd4}
+.src-badge.src-svg{background:#fff3e8;color:#d47a3a}
+.src-badge.src-manual{background:#f0f0ee;color:var(--text3)}
+.part-meta{font-size:10px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.part-meta .sep{margin:0 3px;opacity:.4}
+.part-qty-ctrl{display:flex;align-items:center;gap:2px;flex-shrink:0}
+.qbtn{width:22px;height:22px;border:1px solid var(--border);border-radius:4px;background:var(--bg);cursor:pointer;font-size:13px;color:var(--text2);display:flex;align-items:center;justify-content:center;transition:all .12s;font-family:inherit}
+.qbtn.wide{width:32px;font-size:11px}
+.qbtn:hover{background:var(--bg3);border-color:var(--accent);color:var(--accent)}
+.qty-input{width:40px;height:22px;border:1px solid var(--border);border-radius:4px;text-align:center;font-size:12px;background:var(--bg);color:var(--text);font-family:inherit}
+.qty-input:focus{outline:none;border-color:var(--accent)}
+.part-del{width:20px;height:20px;border:none;background:none;cursor:pointer;color:var(--text3);font-size:15px;border-radius:3px;display:flex;align-items:center;justify-content:center;transition:all .12s;flex-shrink:0}
+.part-del:hover{background:rgba(212,69,90,.1);color:var(--red)}
+
+/* Rename input */
+.rename-input{font-size:12px;font-weight:500;border:1px solid var(--accent);border-radius:3px;padding:1px 4px;outline:none;background:var(--bg);color:var(--text);width:100%;max-width:140px}
+
+/* Preview sidebar */
+.s1-preview-section{padding:12px!important}
+.s1-prev-info{font-size:11px;color:var(--text2);margin-top:8px;line-height:1.7}
+.prev-name{font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prev-row{display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid var(--border)}
+.prev-row:last-child{border-bottom:none}
+.prev-row b{font-weight:500;color:var(--text)}
+
+/* Link-style button */
+.s1-link-btn{background:none;border:none;cursor:pointer;font-size:11px;color:var(--text3);padding:0;font-family:inherit;transition:color .12s}
+.s1-link-btn:hover{color:var(--red)}
+
+/* Manual dialog */
+.s1-dialog-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:1000;display:flex;align-items:center;justify-content:center}
+.s1-dialog-backdrop[hidden]{display:none!important}
+.s1-dialog{background:var(--bg-panel);border-radius:var(--r2);width:480px;max-width:calc(100vw - 32px);box-shadow:0 12px 40px rgba(0,0,0,.2);overflow:hidden}
+.s1-dialog-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);font-size:13px;font-weight:600}
+.s1-dialog-close{background:none;border:none;cursor:pointer;font-size:20px;color:var(--text3);padding:0 4px;line-height:1;transition:color .12s}
+.s1-dialog-close:hover{color:var(--text)}
+.s1-dialog-body{padding:18px}
+.s1-dialog-cols{display:grid;grid-template-columns:1fr auto;gap:18px;align-items:start}
+.s1-dialog-form{display:flex;flex-direction:column;gap:12px}
+.s1-dialog-footer{padding:12px 18px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;background:var(--bg2)}
+.dfield{display:flex;flex-direction:column;gap:4px}
+.dfield label{font-size:11px;color:var(--text3);font-weight:500}
+.dfield input,.dfield select{border:1px solid var(--border);border-radius:var(--r);padding:6px 8px;font-size:12px;background:var(--bg-panel);color:var(--text);font-family:inherit}
+.dfield input:focus,.dfield select:focus{outline:none;border-color:var(--accent)}
+/* Dialog tabs */
+.dlg-tabs{display:flex;border-bottom:1px solid var(--border);background:var(--bg2)}
+.dlg-tab{flex:1;padding:9px 12px;border:none;background:none;cursor:pointer;font-size:12px;color:var(--text2);font-family:inherit;border-bottom:2px solid transparent;transition:all .15s;margin-bottom:-1px}
+.dlg-tab:hover{color:var(--text);background:var(--bg3)}
+.dlg-tab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600;background:var(--bg-panel)}
+/* DXF import zone inside dialog */
+.dxf-import-zone{text-align:center;padding:8px 0}
+.dxf-import-label{display:flex;flex-direction:column;align-items:center;gap:8px;padding:28px 20px;border:2px dashed var(--border2);border-radius:var(--r2);cursor:pointer;transition:all .2s}
+.dxf-import-label:hover{border-color:var(--accent);background:rgba(93,189,46,.04)}
+.dxf-import-icon{font-size:32px;opacity:.4}
+.dxf-import-title{font-size:13px;font-weight:500;color:var(--text2)}
+.dxf-import-sub{font-size:11px;color:var(--text3)}
+.dxf-import-status{font-size:12px;color:var(--accent);font-weight:500;min-height:18px;margin-top:8px}
+
+  /* UI rule: nesting settings are visible only on Step 2 / Nest tab */
+  #step-2:not([data-active-s2tab="nest"]) .nest-tab-only {
+    display: none !important;
+  }
+
+
+
+/* ════════════════════════════════════════════════════════
+   v UI-2 — Clean Nest screen like reference
+   - no black canvas/status areas on Step 2 setup
+   - no internal horizontal split/tabs
+   - Step 2 is a white Sheets + Nesting settings screen
+════════════════════════════════════════════════════════ */
+#step-2 .s2-tabbar,
+#step-2 #s2-panel-nest,
+#step-2 #s2-panel-stats,
+#step-2 #s2-right-detail,
+#step-2 #s2-right-summary,
+#step-2 #s2-right-export {
+  display: none !important;
+}
+#step-2 #s2-panel-sheets {
+  display: flex !important;
+  background: var(--bg-panel);
+}
+#step-2 .s2-layout {
+  grid-template-columns: minmax(0,1fr) 360px;
+  background: var(--bg-panel);
+}
+#step-2 .s2-left {
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border);
+}
+#step-2 .s2-right {
+  background: var(--bg-panel);
+  border-left: none !important;
+  overflow-y: auto;
+}
+#step-2 .s2-sheets-toolbar {
+  height: 52px;
+  padding: 8px 18px;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+}
+#step-2 #s2-sheet-preset { display:none; }
+#step-2 .sheets-list {
+  background: var(--bg-panel);
+}
+#step-2 .empty-state {
+  border-top: 1px solid var(--border);
+  padding-top: 18px;
+  color: var(--text2);
+}
+#step-2 #s2-right-settings {
+  display:block !important;
+  padding: 18px 22px 22px;
+  border-bottom: 1px solid var(--border);
+}
+#step-2 #s2-settings-toggle {
+  cursor: default !important;
+  font-size: 20px;
+  line-height: 1.2;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text);
+  font-weight: 700;
+  margin-bottom: 22px;
+}
+#step-2 #s2-settings-toggle::first-letter { color: inherit; }
+#step-2 #s2-settings-chevron { display:none !important; }
+#step-2 #s2-settings-body { display:block !important; }
+#step-2 .sfield { margin-bottom: 14px !important; }
+#step-2 .sfield label {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 5px;
+}
+#step-2 .sfield input,
+#step-2 .sfield select {
+  height: 34px;
+  border-radius: 4px;
+  background: #fff;
+  border: 1px solid var(--border);
+  font-size: 13px;
+}
+#step-2 #s2-right-start {
+  margin-top: auto;
+  border-top: 1px solid var(--border) !important;
+  background: var(--bg-panel);
+  padding: 16px 22px;
+}
+#step-2 #s2-start-btn {
+  height: 44px;
+  border-radius: 0;
+  font-size: 15px;
+  justify-content: center;
+}
+#step-2 #s2-stop-btn { border-radius:0; }
+#step-2 #s2-progress-wrap {
+  border-top: 1px solid var(--border);
+  background: var(--bg-panel);
+}
+#step-2 .s2-canvas-toolbar,
+#step-2 .s2-canvas-wrap,
+#step-2 .s2-canvas-status {
+  display:none !important;
+}
+
+</style>
+
+<style>
+  body:not(.tab-nest-active) .nest-only-setting {
+    display: none !important;
+  }
+
+
+/* ════════════════════════════════════════════════════════
+   v UI-2 — Clean Nest screen like reference
+   - no black canvas/status areas on Step 2 setup
+   - no internal horizontal split/tabs
+   - Step 2 is a white Sheets + Nesting settings screen
+════════════════════════════════════════════════════════ */
+#step-2 .s2-tabbar,
+#step-2 #s2-panel-nest,
+#step-2 #s2-panel-stats,
+#step-2 #s2-right-detail,
+#step-2 #s2-right-summary,
+#step-2 #s2-right-export {
+  display: none !important;
+}
+#step-2 #s2-panel-sheets {
+  display: flex !important;
+  background: var(--bg-panel);
+}
+#step-2 .s2-layout {
+  grid-template-columns: minmax(0,1fr) 360px;
+  background: var(--bg-panel);
+}
+#step-2 .s2-left {
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border);
+}
+#step-2 .s2-right {
+  background: var(--bg-panel);
+  border-left: none !important;
+  overflow-y: auto;
+}
+#step-2 .s2-sheets-toolbar {
+  height: 52px;
+  padding: 8px 18px;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+}
+#step-2 #s2-sheet-preset { display:none; }
+#step-2 .sheets-list {
+  background: var(--bg-panel);
+}
+#step-2 .empty-state {
+  border-top: 1px solid var(--border);
+  padding-top: 18px;
+  color: var(--text2);
+}
+#step-2 #s2-right-settings {
+  display:block !important;
+  padding: 18px 22px 22px;
+  border-bottom: 1px solid var(--border);
+}
+#step-2 #s2-settings-toggle {
+  cursor: default !important;
+  font-size: 20px;
+  line-height: 1.2;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text);
+  font-weight: 700;
+  margin-bottom: 22px;
+}
+#step-2 #s2-settings-toggle::first-letter { color: inherit; }
+#step-2 #s2-settings-chevron { display:none !important; }
+#step-2 #s2-settings-body { display:block !important; }
+#step-2 .sfield { margin-bottom: 14px !important; }
+#step-2 .sfield label {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 5px;
+}
+#step-2 .sfield input,
+#step-2 .sfield select {
+  height: 34px;
+  border-radius: 4px;
+  background: #fff;
+  border: 1px solid var(--border);
+  font-size: 13px;
+}
+#step-2 #s2-right-start {
+  margin-top: auto;
+  border-top: 1px solid var(--border) !important;
+  background: var(--bg-panel);
+  padding: 16px 22px;
+}
+#step-2 #s2-start-btn {
+  height: 44px;
+  border-radius: 0;
+  font-size: 15px;
+  justify-content: center;
+}
+#step-2 #s2-stop-btn { border-radius:0; }
+#step-2 #s2-progress-wrap {
+  border-top: 1px solid var(--border);
+  background: var(--bg-panel);
+}
+#step-2 .s2-canvas-toolbar,
+#step-2 .s2-canvas-wrap,
+#step-2 .s2-canvas-status {
+  display:none !important;
+}
+
+</style>
+
+
+<style id="ui-nest-visibility-fix-v3">
+/* HARD FIX: hidden steps must really disappear even if they have inline display:contents. */
+.step-view[hidden],
+#step-1[hidden],
+#step-2[hidden],
+#step-3[hidden] {
+  display: none !important;
+}
+
+/* Step 2/Nest setup screen: only the white sheets area + nesting settings are visible. */
+#step-2:not([hidden]) {
+  grid-column: 1 / -1;
+}
+#step-2:not([hidden]) .s2-tabbar,
+#step-2:not([hidden]) #s2-panel-nest,
+#step-2:not([hidden]) #s2-panel-stats,
+#step-2:not([hidden]) #s2-right-detail,
+#step-2:not([hidden]) #s2-right-summary,
+#step-2:not([hidden]) #s2-right-export,
+#step-2:not([hidden]) .s2-canvas-toolbar,
+#step-2:not([hidden]) .s2-canvas-wrap,
+#step-2:not([hidden]) .s2-canvas-status {
+  display: none !important;
+}
+#step-2:not([hidden]) #s2-panel-sheets {
+  display: flex !important;
+  flex: 1 1 auto;
+  min-height: 0;
+  background: var(--bg-panel);
+}
+#step-2:not([hidden]) .s2-left {
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border);
+}
+#step-2:not([hidden]) .s2-right {
+  display: flex !important;
+  flex-direction: column;
+  background: var(--bg-panel);
+}
+#step-2:not([hidden]) #s2-right-settings {
+  display: block !important;
+  background: var(--bg-panel);
+}
+#step-2:not([hidden]) #s2-settings-body {
+  display: block !important;
+}
+
+/* While the user is in Step 1/Set, no Step 2 bottom panels, nesting settings, statistics or dark canvas may leak into view. */
+#step-1:not([hidden]) ~ #step-2,
+#step-1:not([hidden]) ~ #step-2 *,
+#step-1:not([hidden]) ~ #step-3,
+#step-1:not([hidden]) ~ #step-3 * {
+  display: none !important;
+}
+</style>
+
+<style id="supernest-ui-patch">
+  .s2-canvas-wrap,
+  #s2-panel-nest,
+  #s2-canvas,
+  .s2-canvas-area {
+    background: #dcdcdc !important;
+  }
+
+  .supernest-back-settings {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    z-index: 50;
+    display: none;
+    align-items: center;
+    gap: 8px;
+    height: 36px;
+    padding: 0 14px;
+    border-radius: 8px;
+    border: 1px solid #cfcfcf;
+    background: rgba(255,255,255,.95);
+    color: #222;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,.08);
+  }
+
+  .supernest-back-settings:hover {
+    background: #fff;
+  }
+
+  #step-2[data-nest-result="1"] .supernest-back-settings {
+    display: inline-flex;
+  }
+</style>
+
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ── Header ── -->
+  <div class="header">
+    <div class="logo">nest<span class="amp">&amp;</span><span class="cut">cut</span></div>
+    <div class="project-name">
+      <input id="project-name-input" value="Unnamed project" onchange="App.setProjectName(this.value)">
+      <span style="color:var(--text3);font-size:12px">✎</span>
+    </div>
+    <div class="header-right">
+      <button class="hbtn" onclick="App.exportProject()">⬇ Запази проект</button>
+    </div>
+  </div>
+
+  <!-- ── Step header ── -->
+  <div class="steps-header">
+    <button class="step-btn active" id="step-hdr-1" onclick="App.goToStep(1)">
+      <span class="step-num">1</span> Set
+    </button>
+    <button class="step-btn" id="step-hdr-2" onclick="App.goToStep(2)">
+      <span class="step-num">2</span> Nest
+    </button>
+  </div>
+
+  <!-- ── Main ── -->
+  <div class="main sidebar-layout" id="main-content">
+
+    <!-- ══════════════════════════════════════════
+         STEP 1 — IMPORT + SET
+    ══════════════════════════════════════════ -->
+    <div id="step-1" class="step-view" style="display:contents">
+      <div class="s1-shell">
+
+        <!-- ── Tab bar ── -->
+        <div class="s1-tabbar">
+          <button class="s1-tab active" data-s1tab="import">⬆ Import</button>
+          <button class="s1-tab" data-s1tab="set">≡ Set quantities</button>
+          <!-- Upload progress pill -->
+          <div id="s1-upload-progress" hidden style="display:flex;align-items:center;gap:8px;margin-left:auto;padding-right:16px">
+            <div style="width:110px;height:3px;background:var(--bg3);border-radius:2px;overflow:hidden">
+              <div id="s1-upload-bar" style="height:100%;background:var(--accent);border-radius:2px;width:0;transition:width .2s"></div>
+            </div>
+            <span id="s1-upload-status" style="font-size:11px;color:var(--text3);white-space:nowrap"></span>
+          </div>
+        </div>
+
+        <!-- ════════ TAB: IMPORT ════════ -->
+        <div class="s1-panel" id="s1-panel-import">
+
+          <!-- Action buttons row (like SuperNest) -->
+          <div class="s1-import-toolbar">
+            <span style="font-size:14px;font-weight:600;margin-right:12px">Upload your part files</span>
+            <label class="upbtn" style="cursor:pointer">
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 1v8M4 4l3-3 3 3M2 11h10"/></svg>
+              Upload DXF/DWG
+              <input type="file" accept=".dxf,.svg" multiple id="s1-file-input" style="display:none" onchange="Step1.handleFiles(this.files)">
+            </label>
+            <button class="upbtn" id="s1-manual-btn">
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="10" height="10" rx="1.5"/><path d="M7 5v4M5 7h4"/></svg>
+              Add parametric part
+            </button>
+          </div>
+
+          <!-- Drop area + file cards -->
+          <div class="s1-import-body" id="s1-import-body">
+
+            <!-- Big drop zone — shown when empty -->
+            <div id="s1-empty-drop" class="s1-big-drop">
+              <input type="file" accept=".dxf,.svg" multiple
+                     style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%"
+                     onchange="Step1.handleFiles(this.files)">
+              <svg width="44" height="44" viewBox="0 0 44 44" fill="none" stroke="currentColor" stroke-width="1.2" style="opacity:.25;margin-bottom:10px"><circle cx="22" cy="22" r="19"/><path d="M22 13v12M17 18l5-5 5 5"/><path d="M14 31h16"/></svg>
+              <button class="upload-btn-big" type="button"
+                      onclick="document.getElementById('s1-file-input').click();event.stopPropagation()">
+                Upload parts
+              </button>
+              <div style="font-size:13px;color:var(--text3);margin-top:10px">Drag &amp; drop your files here</div>
+              <div style="font-size:11px;color:var(--text3);margin-top:4px;opacity:.6">.dxf &nbsp;·&nbsp; .svg</div>
+            </div>
+
+            <!-- File cards grid — shown after upload -->
+            <div id="s1-file-cards" hidden class="s1-cards-grid"></div>
+
+          </div>
+
+        </div>
+
+        <!-- ════════ TAB: SET ════════ -->
+        <div class="s1-panel" id="s1-panel-set" hidden>
+
+          <!-- Toolbar -->
+          <div class="s1-set-toolbar">
+            <button class="upbtn" onclick="Step1.switchToImport()">
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 1v8M4 4l3-3 3 3M2 11h10"/></svg>
+              Import more parts
+            </button>
+            <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+              <span id="s1-set-counter" style="font-size:12px;color:var(--text3)"></span>
+              <button class="s1-link-btn" onclick="App.clearParts()">Изчисти всички</button>
+            </div>
+          </div>
+
+          <!-- Table header -->
+          <div class="s1-table-header">
+            <div class="s1-th" style="width:56px"></div>
+            <div class="s1-th s1-th-name">FILENAME</div>
+            <div class="s1-th s1-th-qty">QUANTITY</div>
+            <div class="s1-th s1-th-dim">LENGTH</div>
+            <div class="s1-th s1-th-dim">HEIGHT</div>
+            <div class="s1-th" style="width:120px">SETTINGS</div>
+            <div class="s1-th" style="width:32px"></div>
+          </div>
+
+          <!-- Rows -->
+          <div class="s1-table-body" id="s1-set-list">
+            <div class="empty-state"><div class="empty-icon">◫</div><div>Няма детайли — отиди в Import</div></div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- Global drag overlay -->
+      <div id="s1-drop-overlay">
+        <div class="s1-drop-overlay-inner">
+          <div style="font-size:36px;margin-bottom:12px">📂</div>
+          <div style="font-size:16px;font-weight:600">Пусни DXF / SVG файловете</div>
+        </div>
+      </div>
+
+    </div><!-- /step-1 -->
+
+    <!-- ══════════════════════════════════════════
+         STEP 2 — NEST  (обединен с Cut)
+    ══════════════════════════════════════════ -->
+    <div id="step-2" class="step-view" hidden data-active-s2tab="nest" style="display:contents">
+
+      <!-- ═══ LEFT: tabbed content ═══ -->
+      <div class="content s2-left" style="overflow:hidden;display:flex;flex-direction:column">
+        <!-- Tab bar -->
+        <div class="s2-tabbar">
+          <button class="s2-tab active" data-s2tab="nest">◈ Nest</button>
+          <button class="s2-tab" data-s2tab="sheets">▭ Sheets</button>
+          <button class="s2-tab" data-s2tab="stats">◎ Statistics</button>
+        </div>
+
+        <!-- ── Panel: NEST (canvas + sheet tabs) ── -->
+        <div class="s2-panel s2-nest-panel" id="s2-panel-nest">
+          <!-- Sheet tabs toolbar -->
+          <div class="s2-canvas-toolbar">
+            <div id="s2-sheet-tabs" style="display:flex;gap:4px;flex:1;overflow-x:auto"></div>
+            <button class="s2-icon-btn" onclick="Step2.zoomIn()"  title="Zoom in">+</button>
+            <button class="s2-icon-btn" onclick="Step2.zoomOut()" title="Zoom out">−</button>
+            <button class="s2-icon-btn" onclick="Step2.fitView()" title="Fit">⊡</button>
+          </div>
+          <!-- Dark canvas area -->
+          <div class="s2-canvas-wrap" id="s2-canvas-wrap">
+            <canvas id="s2-canvas"></canvas>
+            <!-- Empty state overlay -->
+            <div class="s2-canvas-empty" id="s2-canvas-empty">
+              <div style="font-size:32px;opacity:.2;margin-bottom:12px">◈</div>
+              <div style="font-size:13px;font-weight:500;opacity:.4">Стартирай оптимизацията</div>
+              <div style="font-size:11px;opacity:.25;margin-top:4px">Set quantities → Start optimization</div>
+            </div>
+          </div>
+          <!-- Status bar -->
+          <div class="s2-canvas-status">
+            <span id="s2-canvas-hint">Scroll за зум · Drag за навигация · Клик за детайли</span>
+            <span id="s2-canvas-coords" style="margin-left:auto;font-family:monospace"></span>
+          </div>
+        </div>
+
+        <!-- ── Panel: Sheets ── -->
+        <div class="s2-panel" id="s2-panel-sheets" hidden>
+          <div class="s2-sheets-toolbar">
+            <select id="s2-sheet-preset"></select>
+            <button class="btn primary" id="s2-add-sheet-btn">+ Add sheet</button>
+            <button class="btn" onclick="Step2.showSpreadsheetImport()">⬆ Spreadsheet import</button>
+            <button class="btn" onclick="Step2.showDXFSheetImport && Step2.showDXFSheetImport()">⬆ Import DXF sheet</button>
+          </div>
+          <div class="sheets-list" id="s2-sheets-list">
+            <div class="empty-state"><div class="empty-icon">▭</div><div>No sheets added</div></div>
+          </div>
+          <div id="s2-progress-wrap" hidden>
+            <div class="progress-wrap">
+              <div class="progress-track"><div class="progress-bar" id="s2-progress-bar"></div></div>
+              <div class="progress-label" id="s2-progress-label">Подготвяне...</div>
+            </div>
+            <div class="log-area" id="s2-log"></div>
+          </div>
+        </div>
+
+        <!-- ── Panel: Statistics ── -->
+        <div class="s2-panel" id="s2-panel-stats" hidden>
+          <div class="s2-stats-grid">
+            <div class="s2-stat-card"><div class="s2-stat-val" id="s2-st-eff">—</div><div class="s2-stat-lbl">Ефективност</div></div>
+            <div class="s2-stat-card"><div class="s2-stat-val" id="s2-st-waste">—</div><div class="s2-stat-lbl">Отпадък</div></div>
+            <div class="s2-stat-card"><div class="s2-stat-val" id="s2-st-sheets">—</div><div class="s2-stat-lbl">Листа</div></div>
+            <div class="s2-stat-card"><div class="s2-stat-val" id="s2-st-placed">—</div><div class="s2-stat-lbl">Поставени</div></div>
+          </div>
+          <div style="padding:16px">
+            <div id="s2-st-unplaced" style="font-size:12px;color:var(--text3);margin-bottom:16px">Стартирай нестинга за статистики</div>
+            <div id="s2-st-breakdown"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ═══ RIGHT sidebar: settings + part detail + actions ═══ -->
+      <div class="sidebar s2-right" style="border-right:none;border-left:1px solid var(--border);display:flex;flex-direction:column">
+
+        <!-- Nesting settings (collapsed by default when no result, expanded otherwise) -->
+        <div class="s2-right-section nest-tab-only" id="s2-right-settings">
+          <div class="s2-right-title" id="s2-settings-toggle" style="cursor:pointer;user-select:none">
+            ⚙ Nesting settings
+            <span id="s2-settings-chevron" style="float:right;transition:transform .2s">▾</span>
+          </div>
+          <div id="s2-settings-body">
+            <div class="sfield" style="margin-bottom:10px">
+              <label>Part gap (мм)</label>
+              <input type="number" id="s2-part-gap" value="6.5" min="0" step="0.5">
+            </div>
+            <div class="sfield" style="margin-bottom:10px">
+              <label>Sheet border gap (мм)</label>
+              <input type="number" id="s2-border-gap" value="2" min="0" step="0.5">
+            </div>
+            <div class="sfield" style="margin-bottom:10px">
+              <label>Ротация</label>
+              <select id="s2-rotation">
+                <option value="free">Free rotation</option>
+                <option value="90">90° steps</option>
+                <option value="45">45° steps</option>
+                <option value="none">No rotation</option>
+              </select>
+            </div>
+            <div class="sfield" style="margin-bottom:10px">
+              <label>Стъпка (°)</label>
+              <input type="number" id="s2-rot-step" value="3" min="1" max="90">
+            </div>
+            <div class="sfield" style="margin-bottom:10px">
+              <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:12px">
+                <input type="checkbox" id="s2-mirror" style="accent-color:var(--accent)"> Allow mirror
+              </label>
+            </div>
+            <div class="sfield" style="margin-bottom:4px">
+              <label>Качество</label>
+              <input type="range" id="s2-quality-slider" min="0" max="100" value="0" style="accent-color:var(--accent);width:100%">
+              <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3)"><span>1 мин</span><span>2 мин</span><span>3 мин</span></div>
+              <div class="quality-val" id="s2-quality-label">Време: 1:00 мин</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Selected part detail -->
+        <div class="s2-right-section" id="s2-right-detail" hidden>
+          <div class="s2-right-title">Детайл</div>
+          <div id="s2-part-detail-panel"></div>
+        </div>
+
+        <!-- Parts summary (collapsible) -->
+        <div class="s2-right-section" id="s2-right-summary" style="flex:1;overflow-y:auto">
+          <div class="s2-right-title">Parts summary</div>
+          <div id="s2-parts-summary" style="font-size:12px;line-height:1.8;color:var(--text2)">—</div>
+        </div>
+
+        <!-- Export -->
+        <div class="s2-right-section" id="s2-right-export" hidden>
+          <div class="s2-right-title">Експорт</div>
+          <div style="display:flex;flex-direction:column;gap:5px">
+            <button class="export-btn" onclick="Step2.exportDXF()">◧ DXF файл</button>
+            <button class="export-btn" onclick="Step2.exportSVG()">◈ SVG файл</button>
+            <button class="export-btn" onclick="Step2.exportCSV()">▤ CSV репорт</button>
+          </div>
+        </div>
+
+        <!-- Start / Stop -->
+        <div class="s2-right-section" id="s2-right-start" style="flex-shrink:0;border-top:1px solid var(--border)">
+          <button class="btn primary" id="s2-start-btn" style="width:100%;padding:9px">▶ Start optimization</button>
+          <button class="btn" id="s2-stop-btn" hidden style="width:100%;margin-top:6px;padding:8px">◼ Stop</button>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ══════════════════════════════════════════
+         STEP 3 — CUT
+    ══════════════════════════════════════════ -->
+    <div id="step-3" class="step-view" hidden style="display:contents;grid-column:1/-1">
+      <!-- Full width, own layout -->
+      <div style="grid-column:1/-1;display:grid;grid-template-columns:1fr 240px;grid-template-rows:auto 1fr auto;height:100%;overflow:hidden">
+
+        <!-- Toolbar -->
+        <div class="s3-toolbar" style="grid-column:1/-1">
+          <div id="s3-sheet-tabs" style="display:flex;gap:4px;flex:1"></div>
+          <button class="btn" onclick="Step3.zoomIn()">+</button>
+          <button class="btn" onclick="Step3.zoomOut()">−</button>
+          <button class="btn" onclick="Step3.fitView()">⊡ Fit</button>
+        </div>
+
+        <!-- Canvas -->
+        <div class="s3-canvas-wrap">
+          <canvas id="s3-canvas"></canvas>
+        </div>
+
+        <!-- Side panel -->
+        <div class="s3-side">
+          <div class="sidebar-section">
+            <div class="sec-title">Статистики</div>
+            <div class="stats-bar" style="display:flex;flex-direction:column;border-bottom:none">
+              <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text3);font-size:11px">Ефективност</span><b id="s3-stat-eff">—</b></div>
+              <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text3);font-size:11px">Листа</span><b id="s3-stat-sheets">—</b></div>
+              <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text3);font-size:11px">Поставени</span><b id="s3-stat-placed">—</b></div>
+              <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text3);font-size:11px">Отпадък</span><b id="s3-stat-waste">—</b></div>
+              <div style="padding:5px 0"><span id="s3-stat-unplaced" class="stat-badge">—</span></div>
+            </div>
+          </div>
+
+          <div class="sidebar-section" style="flex:1">
+            <div class="sec-title">Детайл</div>
+            <div id="s3-part-detail" hidden class="detail-panel"></div>
+            <div id="s3-no-selection" style="font-size:11px;color:var(--text3)">Кликни детайл за информация</div>
+          </div>
+
+          <div class="export-panel">
+            <h4>Експорт</h4>
+            <div class="export-btns">
+              <button class="export-btn" onclick="Step3.exportDXF()"><span>◧</span> DXF файл</button>
+              <button class="export-btn" onclick="Step3.exportSVG()"><span>◈</span> SVG файл</button>
+              <button class="export-btn" onclick="Step3.exportCSV()"><span>▤</span> CSV репорт</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bottom status -->
+        <div style="grid-column:1/-1;background:var(--bg2);border-top:1px solid var(--border);padding:6px 16px;font-size:11px;color:var(--text3)">
+          Кликни детайл за информация · Scroll за зум · Drag за навигация
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+
+  <!-- ── Bottom Nav ── -->
+  <div style="display:none" id="bottom-nav-1">
+    <div class="bottom-nav" style="background:var(--bg);border-top:1px solid var(--border)">
+      <div class="bnav-left"><button>← Projects list</button></div>
+      <div class="bnav-right"><button onclick="App.goToStep(2)">Set quantities →</button></div>
+    </div>
+  </div>
+
+</div><!-- /app -->
+
+<!-- ══════════════════════════════════════════════════════
+     ADD PART DIALOG — извън .app за да не се влияе от grid/step
+════════════════════════════════════════════════════════ -->
+<div id="s1-manual-dialog" class="s1-dialog-backdrop" hidden>
+  <div class="s1-dialog" role="dialog" aria-modal="true" aria-labelledby="dlg-title">
+
+    <!-- Header -->
+    <div class="s1-dialog-header">
+      <span id="dlg-title">Добави детайли</span>
+      <button class="s1-dialog-close" id="s1-manual-close" aria-label="Затвори">×</button>
+    </div>
+
+    <!-- Tabs -->
+    <div class="dlg-tabs">
+      <button class="dlg-tab active" data-panel="dlg-panel-parametric">✎ Параметрична форма</button>
+      <button class="dlg-tab" data-panel="dlg-panel-dxf">◧ DXF импорт</button>
+    </div>
+
+    <!-- Panel 1: Parametric -->
+    <div id="dlg-panel-parametric" class="dlg-tab-panel">
+      <div class="s1-dialog-body">
+        <div class="s1-dialog-cols">
+          <div class="s1-dialog-form">
+            <div class="dfield">
+              <label>Наименование</label>
+              <input type="text" id="s1-manual-name" value="Детайл 1">
+            </div>
+            <div class="dfield">
+              <label>Форма</label>
+              <select id="s1-manual-shape">
+                <option value="rect">Правоъгълник</option>
+                <option value="lshape">L-форма</option>
+                <option value="tshape">T-форма</option>
+                <option value="triangle">Триъгълник</option>
+                <option value="hexagon">Шестоъгълник</option>
+                <option value="diamond">Ромб</option>
+              </select>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div class="dfield">
+                <label>Ширина (мм)</label>
+                <input type="number" id="s1-manual-w" value="200" min="1">
+              </div>
+              <div class="dfield">
+                <label>Височина (мм)</label>
+                <input type="number" id="s1-manual-h" value="150" min="1">
+              </div>
+            </div>
+            <div class="dfield">
+              <label>Количество</label>
+              <input type="number" id="s1-manual-qty" value="1" min="1" max="999">
+            </div>
+          </div>
+          <!-- Live preview canvas -->
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+            <div style="font-size:11px;color:var(--text3)">Преглед</div>
+            <canvas id="s1-manual-preview-canvas" width="140" height="140"
+                    style="border:1px solid var(--border);border-radius:var(--r);display:block"></canvas>
+          </div>
+        </div>
+      </div>
+      <div class="s1-dialog-footer">
+        <button class="btn" data-close-dialog>Отказ</button>
+        <button class="btn primary" id="s1-manual-add">+ Добави</button>
+      </div>
+    </div>
+
+    <!-- Panel 2: DXF import -->
+    <div id="dlg-panel-dxf" class="dlg-tab-panel" hidden>
+      <div class="s1-dialog-body">
+        <div class="dxf-import-zone">
+          <label class="dxf-import-label">
+            <input type="file" id="s1-dlg-dxf-input" accept=".dxf,.svg" multiple style="display:none">
+            <div class="dxf-import-icon">◧</div>
+            <div class="dxf-import-title">Избери DXF / SVG файлове</div>
+            <div class="dxf-import-sub">или влачи тук</div>
+          </label>
+          <div id="s1-dlg-dxf-status" class="dxf-import-status"></div>
+          <div style="font-size:11px;color:var(--text3);margin-top:12px;line-height:1.6">
+            Поддържани: LINE, LWPOLYLINE, CIRCLE, ARC, ELLIPSE, SPLINE, HATCH<br>
+            Единици: мм, cm, inches (автоматично)
+          </div>
+        </div>
+      </div>
+      <div class="s1-dialog-footer">
+        <button class="btn" data-close-dialog>Затвори</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Bottom nav (always visible) -->
+<div id="global-bottom" style="position:fixed;bottom:0;left:0;right:0;background:var(--bg);border-top:1px solid var(--border);height:52px;display:flex;align-items:center;z-index:50">
+  <div class="bnav-left">
+    <button id="nav-back-btn" onclick="App.goToStep(App.state.currentStep-1)">← Back</button>
+  </div>
+  <div style="flex:1;text-align:center;font-size:11px;color:var(--text3)" id="bottom-status">
+    <span id="s1-part-count-bot">Добавете детайли</span>
+  </div>
+  <div class="bnav-right">
+    <button id="nav-next-btn" onclick="_handleNextBtn()">Set quantities →</button>
+  </div>
+</div>
+
+
+<style id="valinor-preview-zoom-v2-css">
+  .s1-file-card,
+  .s1-card-thumb,
+  .s1-set-thumb {
+    cursor: zoom-in;
+  }
+
+  .vz-backdrop[hidden] {
+    display: none !important;
+  }
+
+  .vz-backdrop {
+    pointer-events: auto;
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    background: rgba(0,0,0,.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 28px;
+  }
+
+  .vz-dialog {
+    width: min(92vw, 980px);
+    height: min(88vh, 760px);
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 18px 60px rgba(0,0,0,.32);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .vz-head {
+    height: 48px;
+    padding: 0 16px;
+    border-bottom: 1px solid var(--border, #ddd);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+
+  .vz-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text, #222);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .vz-subtitle {
+    margin-left: auto;
+    font-size: 12px;
+    color: var(--text3, #888);
+    white-space: nowrap;
+  }
+
+  .vz-close {
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--border, #ddd);
+    border-radius: 6px;
+    background: #fff;
+    cursor: pointer;
+    font-size: 20px;
+    line-height: 1;
+  }
+
+  .vz-close:hover {
+    background: #f3f3f1;
+  }
+
+  .vz-body {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 1fr 220px;
+    background: #f7f7f5;
+  }
+
+  .vz-canvas-wrap {
+    position: relative;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #vz-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  .vz-side {
+    border-left: 1px solid var(--border, #ddd);
+    background: #fff;
+    padding: 14px;
+    overflow-y: auto;
+  }
+
+  .vz-info-title {
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: var(--text, #222);
+  }
+
+  .vz-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 7px 0;
+    border-bottom: 1px solid #eee;
+    font-size: 12px;
+  }
+
+  .vz-row span:first-child {
+    color: var(--text3, #777);
+  }
+
+  .vz-row span:last-child {
+    font-weight: 600;
+    color: var(--text, #222);
+    text-align: right;
+  }
+
+  .vz-foot {
+    height: 36px;
+    padding: 0 14px;
+    border-top: 1px solid var(--border, #ddd);
+    display: flex;
+    align-items: center;
+    color: var(--text3, #777);
+    font-size: 11px;
+    background: #fff;
+  }
+
+  @media (max-width: 760px) {
+    .vz-dialog { width: 96vw; height: 92vh; }
+    .vz-body { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
+    .vz-side { border-left: 0; border-top: 1px solid var(--border, #ddd); max-height: 180px; }
+  }
+</style>
+
+<div id="valinor-zoom-dialog" class="vz-backdrop" hidden>
+  <div class="vz-dialog" role="dialog" aria-modal="true">
+    <div class="vz-head">
+      <div class="vz-title" id="vz-title">Преглед</div>
+      <div class="vz-subtitle" id="vz-subtitle"></div>
+      <button class="vz-close" id="vz-close" title="Затвори">×</button>
+    </div>
+    <div class="vz-body">
+      <div class="vz-canvas-wrap">
+        <canvas id="vz-canvas"></canvas>
+      </div>
+      <div class="vz-side" id="vz-info"></div>
+    </div>
+    <div class="vz-foot">Клик върху детайл или лист от Import / Set quantities отваря този увеличен преглед. ESC затваря.</div>
+  </div>
+</div>
+
+<script id="valinor-preview-zoom-v2-js">
+(function () {
+  let current = null;
+
+  function getApp() {
+    return window.App || window.__valinorAppRef || (typeof App !== 'undefined' ? App : null);
+  }
+
+  function findPartById(id) {
+    const app = getApp();
+    if (!app || !app.state || !app.state.parts) return null;
+    const sid = String(id);
+    return app.state.parts.find(p => String(p.id) === sid || Number(p.id) === Number(id));
+  }
+
+  function findSheetById(id) {
+    const app = getApp();
+    if (!app || !app.state || !app.state.sheets) return null;
+    const sid = String(id);
+    return app.state.sheets.find(s => String(s.id) === sid || Number(s.id) === Number(id));
+  }
+
+  function bbox(poly) {
+    if (!poly || !poly.length) return { minX:0, minY:0, maxX:1, maxY:1, w:1, h:1 };
+    let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
+    poly.forEach(p => {
+      minX = Math.min(minX, p.x); minY = Math.min(minY, p.y);
+      maxX = Math.max(maxX, p.x); maxY = Math.max(maxY, p.y);
+    });
+    return { minX, minY, maxX, maxY, w: Math.max(1, maxX-minX), h: Math.max(1, maxY-minY) };
+  }
+
+  function fmt(n) {
+    const v = Number(n) || 0;
+    return Math.round(v * 10) / 10;
+  }
+
+  function prepareCanvas(canvas) {
+    const ctx = canvas.getContext('2d');
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.max(400, Math.floor((rect.width || 700) * dpr));
+    canvas.height = Math.max(300, Math.floor((rect.height || 500) * dpr));
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    return { ctx, W: rect.width || 700, H: rect.height || 500 };
+  }
+
+  function drawPart(canvas, part) {
+    const { ctx, W, H } = prepareCanvas(canvas);
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle = '#f7f7f5';
+    ctx.fillRect(0,0,W,H);
+
+    const poly = part.poly || [];
+    const bb = part.bbox || bbox(poly);
+    const pad = 46;
+    const sc = Math.min((W-pad*2)/(bb.w || 1), (H-pad*2)/(bb.h || 1));
+    const ox = (W - bb.w*sc)/2 - (bb.minX || 0)*sc;
+    const oy = (H - bb.h*sc)/2 - (bb.minY || 0)*sc;
+
+    ctx.strokeStyle = '#e2e2df';
+    ctx.lineWidth = 1;
+    const grid = Math.max(20, Math.min(80, sc * 100));
+    for (let x = (ox % grid); x < W; x += grid) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+    for (let y = (oy % grid); y < H; y += grid) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+
+    if (poly.length) {
+      ctx.beginPath();
+      poly.forEach((p,i) => {
+        const x = ox + p.x * sc, y = oy + p.y * sc;
+        if (i === 0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      });
+      ctx.closePath();
+      ctx.fillStyle = (part.color || '#5dbd2e') + '22';
+      ctx.fill();
+      ctx.strokeStyle = part.color || '#5dbd2e';
+      ctx.lineWidth = 2;
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+
+      if (part.holes && part.holes.length) {
+        part.holes.forEach(h => {
+          if (!h.length) return;
+          ctx.beginPath();
+          h.forEach((p,i)=> {
+            const x = ox + p.x * sc, y = oy + p.y * sc;
+            if (i === 0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+          });
+          ctx.closePath();
+          ctx.fillStyle = '#fff';
+          ctx.fill();
+          ctx.strokeStyle = '#999';
+          ctx.lineWidth = 1.4;
+          ctx.stroke();
+        });
+      }
+    }
+
+    ctx.fillStyle = '#333';
+    ctx.font = '12px Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(fmt(bb.w) + ' mm', W/2, H - 18);
+    ctx.save();
+    ctx.translate(20, H/2);
+    ctx.rotate(-Math.PI/2);
+    ctx.fillText(fmt(bb.h) + ' mm', 0, 0);
+    ctx.restore();
+  }
+
+  function drawSheet(canvas, sheet) {
+    const { ctx, W, H } = prepareCanvas(canvas);
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle = '#f7f7f5';
+    ctx.fillRect(0,0,W,H);
+
+    const pad = 46;
+    const sw = Number(sheet.width) || 1220;
+    const sh = Number(sheet.height) || 2440;
+    const sc = Math.min((W-pad*2)/sw, (H-pad*2)/sh);
+    const ox = (W - sw*sc)/2;
+    const oy = (H - sh*sc)/2;
+
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(ox, oy, sw*sc, sh*sc);
+    ctx.strokeStyle = '#5dbd2e';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(ox, oy, sw*sc, sh*sc);
+
+    ctx.fillStyle = '#333';
+    ctx.font = '12px Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(fmt(sw) + ' mm', W/2, oy + sh*sc + 24);
+    ctx.save();
+    ctx.translate(ox - 20, H/2);
+    ctx.rotate(-Math.PI/2);
+    ctx.fillText(fmt(sh) + ' mm', 0, 0);
+    ctx.restore();
+  }
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  }
+
+  function infoHtmlForPart(part) {
+    const bb = part.bbox || bbox(part.poly);
+    return `
+      <div class="vz-info-title">Детайл</div>
+      <div class="vz-row"><span>Име</span><span>${esc(part.name || 'Детайл')}</span></div>
+      <div class="vz-row"><span>Файл</span><span>${esc(part.filename || 'manual')}</span></div>
+      <div class="vz-row"><span>Размер</span><span>${fmt(bb.w)} × ${fmt(bb.h)} mm</span></div>
+      <div class="vz-row"><span>Количество</span><span>${part.qty || 1}</span></div>
+      <div class="vz-row"><span>Точки</span><span>${(part.poly || []).length}</span></div>
+      <div class="vz-row"><span>Отвори</span><span>${(part.holes || []).length}</span></div>
+    `;
+  }
+
+  function infoHtmlForSheet(sheet) {
+    return `
+      <div class="vz-info-title">Лист</div>
+      <div class="vz-row"><span>Име</span><span>${esc(sheet.name || 'Sheet')}</span></div>
+      <div class="vz-row"><span>Размер</span><span>${fmt(sheet.width)} × ${fmt(sheet.height)} mm</span></div>
+      <div class="vz-row"><span>Количество</span><span>${sheet.qty || 1}</span></div>
+    `;
+  }
+
+  function openPart(part) {
+    if (!part) return;
+    current = { type: 'part', data: part };
+    const dlg = document.getElementById('valinor-zoom-dialog');
+    document.getElementById('vz-title').textContent = part.name || 'Детайл';
+    document.getElementById('vz-subtitle').textContent = 'увеличен преглед';
+    document.getElementById('vz-info').innerHTML = infoHtmlForPart(part);
+    dlg.hidden = false;
+    setTimeout(() => drawPart(document.getElementById('vz-canvas'), part), 30);
+  }
+
+  function openSheet(sheet) {
+    if (!sheet) return;
+    current = { type: 'sheet', data: sheet };
+    const dlg = document.getElementById('valinor-zoom-dialog');
+    document.getElementById('vz-title').textContent = sheet.name || 'Sheet';
+    document.getElementById('vz-subtitle').textContent = 'увеличен преглед';
+    document.getElementById('vz-info').innerHTML = infoHtmlForSheet(sheet);
+    dlg.hidden = false;
+    setTimeout(() => drawSheet(document.getElementById('vz-canvas'), sheet), 30);
+  }
+
+  function openPartById(id) {
+    const part = findPartById(id);
+    if (part) openPart(part);
+    else console.warn('[ZoomPreview] part not found', id);
+  }
+
+  function openSheetById(id) {
+    const sheet = findSheetById(id);
+    if (sheet) openSheet(sheet);
+    else console.warn('[ZoomPreview] sheet not found', id);
+  }
+
+  function close() {
+    const dlg = document.getElementById('valinor-zoom-dialog');
+    if (dlg) dlg.hidden = true;
+    current = null;
+  }
+
+  document.addEventListener('click', function(e) {
+    const t = e.target;
+
+    if (t.closest && (t.closest('#vz-close') || (t.id === 'valinor-zoom-dialog'))) {
+      close();
+      return;
+    }
+
+    if (t.closest && (t.closest('[data-qbtn]') || t.closest('[data-qty-id]') || t.closest('[data-del]') || t.closest('[data-rename]') || t.closest('.s1-card-menu'))) {
+      return;
+    }
+
+    const setRow = t.closest && t.closest('.s1-set-row[data-id]');
+    if (setRow && (t.closest('.s1-set-thumb') || t.closest('.s1-set-name'))) {
+      const part = findPartById(setRow.dataset.id);
+      if (part) { e.preventDefault(); e.stopPropagation(); openPart(part); }
+      return;
+    }
+
+    const impThumb = t.closest && t.closest('.s1-card-thumb[data-part-id]');
+    if (impThumb) {
+      const part = findPartById(impThumb.dataset.partId);
+      if (part) { e.preventDefault(); e.stopPropagation(); openPart(part); }
+      return;
+    }
+
+    const sheetRow = t.closest && t.closest('[data-sheet-id]');
+    if (sheetRow && (t.closest('.s2-sheet-name') || t.closest('.s2-sheet-dim') || t.closest('.s2-sheet-preview') || t.closest('.s2-sheet-row'))) {
+      const sheet = findSheetById(sheetRow.dataset.sheetId);
+      if (sheet) { e.preventDefault(); e.stopPropagation(); openSheet(sheet); }
+    }
+  }, true);
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') close();
+  });
+
+  window.addEventListener('resize', () => {
+    if (!current || document.getElementById('valinor-zoom-dialog')?.hidden) return;
+    const canvas = document.getElementById('vz-canvas');
+    if (current.type === 'part') drawPart(canvas, current.data);
+    if (current.type === 'sheet') drawSheet(canvas, current.data);
+  });
+
+  window.ValinorZoomPreview = { openPart, openPartById, openSheet, openSheetById, close };
+})();
+</script>
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<!-- ═══════════════════════════════════════════════════════
+     NESTING WORKER SOURCE (embedded)
+     Се зарежда като Blob URL в app.js
+════════════════════════════════════════════════════════ -->
+<script id="nesting-worker-src" type="text/plain">
+/**
+ * nesting-worker.js  v2.0
+ * ─────────────────────────────────────────────────────────────
+ * Самостоятелна подпрограма за нестинг изчисления.
+ * Работи като Web Worker — напълно изолирана от UI нишката.
+ *
+ * ПРОТОКОЛ (postMessage):
+ *
+ * → { type:'start',  data: NestingRequest  }  — стартирай
+ * → { type:'stop'                           }  — прекъсни
+ *
+ * ← { type:'progress', data: { pct, msg }  }  — прогрес 0-100
+ * ← { type:'log',      data: string        }  — debug лог
+ * ← { type:'result',   data: NestingResult }  — финален резултат
+ * ← { type:'error',    data: string        }  — грешка
+ *
+ * NestingRequest {
+ *   pieces: [{
+ *     id, partId, name, color,
+ *     poly: [{x,y}],       ← outer contour (normalized to origin)
+ *     holes: [[{x,y}]],    ← inner holes (optional, for future toolpath)
+ *     bbox: {w,h},
+ *     rotationLock: bool
+ *   }],
+ *   sheets: [{
+ *     id, name, width, height, qty
+ *   }],
+ *   settings: {
+ *     partGap:        number,   ← мм между детайлите
+ *     sheetBorderGap: number,   ← мм отстояние от ръба
+ *     rotation:       'none'|'90'|'45'|'free',
+ *     rotStep:        number,   ← градуси при 'free'
+ *     quality:        0-100,    ← 0=fast, 100=quality
+ *   }
+ * }
+ *
+ * NestingResult {
+ *   sheets: [{
+ *     sheetId, sheet,
+ *     placements: [{
+ *       ...piece,
+ *       poly: [{x,y}],   ← финална позиция
+ *       angle: number,   ← приложена ротация
+ *     }],
+ *     efficiency: number  ← % запълване
+ *   }],
+ *   totalPlaced:      number,
+ *   totalPieces:      number,
+ *   unplaced:         piece[],
+ *   overallEfficiency: number
+ * }
+ */
+
+'use strict';
+
+// ── Управление на жизнения цикъл ─────────────────────────────
+let _stopped = false;
+
+self.onmessage = async (e) => {
+  if (e.data.type === 'stop')  { _stopped = true;  return; }
+  if (e.data.type === 'start') {
+    _stopped = false;
+    try {
+      await _runNesting(e.data.data);
+    } catch (err) {
+      self.postMessage({ type: 'error', data: err.message });
+    }
+  }
+};
+
+// ── Комуникационни helpers ────────────────────────────────────
+const _log  = msg => self.postMessage({ type: 'log',      data: msg });
+const _prog = (pct, msg) => self.postMessage({ type: 'progress', data: { pct, msg } });
+
+// ══════════════════════════════════════════════════════════════
+// ЯДРО НА НЕСТИНГА
+// ══════════════════════════════════════════════════════════════
+async function _runNesting({ pieces, sheets, settings }) {
+  _log('Нестинг стартиран...');
+  _prog(2, 'Подготовка...');
+
+  settings = settings || {};
+  const gap    = settings.partGap        || 0;
+  const margin = settings.sheetBorderGap || 0;
+
+  // Качество = времеви бюджет.
+  // 0%  = 1 минута, 50% ≈ 2 минути, 100% = 3 минути.
+  const quality = Math.max(0, Math.min(100, Number(settings.quality) || 0));
+  const timeLimitMs = Math.max(60000, Math.min(180000,
+    Number(settings.timeLimitMs) ||
+    Number(settings.nestingTimeMs) ||
+    ((Number(settings.nestingTime) || 0) * 1000) ||
+    (60000 + quality * 1200)
+  ));
+  const startedAt = Date.now();
+  const deadline  = startedAt + timeLimitMs;
+
+  const timeLeftSec = () => Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+  const timeUp = () => Date.now() >= deadline;
+
+  _log(`Времеви лимит: ${Math.round(timeLimitMs / 1000)} сек.`);
+  _prog(3, `Лимит: ${Math.round(timeLimitMs / 1000)} сек.`);
+
+  // ── Ротационни ъгли ──────────────────────────────────────
+  const rotAngles = _buildRotAngles(settings);
+
+  // ── Сортиране: най-голямото парче първо ───────────────────
+  const sorted = [...pieces].sort((a, b) => b.bbox.w * b.bbox.h - a.bbox.w * a.bbox.h);
+
+  const allSheets = [];
+  let remaining   = [...sorted];
+  let sheetIdx    = 0;
+  const total     = sorted.length;
+  let stoppedByTime = false;
+
+  function finish(reason) {
+    const totalPlaced = allSheets.reduce((s, sh) => s + sh.placements.length, 0);
+    const totalArea   = allSheets.reduce((s, sh) => s + sh.sheet.width * sh.sheet.height, 0);
+    const usedArea    = allSheets.reduce((s, sh) =>
+      s + sh.placements.reduce((ss, p) => {
+        const bb = _getBBox(p.poly); return ss + bb.w * bb.h;
+      }, 0), 0);
+    const overallEfficiency = totalArea > 0 ? usedArea / totalArea * 100 : 0;
+
+    const elapsedSec = Math.round((Date.now() - startedAt) / 1000);
+    const msg = reason === 'time'
+      ? `Готово по времеви лимит (${elapsedSec} сек.)`
+      : 'Готово!';
+
+    _prog(100, msg);
+    _log(`✓ ${totalPlaced}/${total} детайла · ${allSheets.length} листа · ${overallEfficiency.toFixed(1)}% ефективност · ${elapsedSec} сек.`);
+
+    self.postMessage({
+      type: 'result',
+      data: {
+        sheets: allSheets,
+        totalPlaced,
+        totalPieces: total,
+        unplaced: remaining,
+        overallEfficiency,
+        stoppedByTime: reason === 'time',
+        elapsedSec,
+        timeLimitSec: Math.round(timeLimitMs / 1000),
+      }
+    });
+  }
+
+  // ── Основен цикъл: лист по лист ──────────────────────────
+  outer:
+  while (remaining.length > 0 && sheetIdx < 50) {
+    if (_stopped) { _log('Спряно от потребителя'); return; }
+    if (timeUp()) { stoppedByTime = true; break; }
+
+    const sheetDef = sheets[Math.min(sheetIdx, sheets.length - 1)];
+    const sw = sheetDef.width, sh = sheetDef.height;
+    _log(`Лист ${sheetIdx + 1} (${sw}×${sh}мм) — ${remaining.length} детайла...`);
+
+    const placed   = [];
+    const unplaced = [];
+
+    for (let pi = 0; pi < remaining.length; pi++) {
+      if (_stopped) return;
+      if (timeUp()) {
+        unplaced.push(...remaining.slice(pi));
+        stoppedByTime = true;
+        break;
+      }
+
+      const piece = remaining[pi];
+      const basePct = ((total - remaining.length + pi) / Math.max(1,total)) * 82 + 5;
+      const timePct = Math.min(95, ((Date.now() - startedAt) / timeLimitMs) * 95);
+      const pct = Math.round(Math.max(basePct, timePct));
+      if (pi % 3 === 0) _prog(pct, `Лист ${sheetIdx+1}: ${piece.name} · остават ~${timeLeftSec()} сек.`);
+
+      // Намери най-добрата позиция при всички позволени ъгли
+      let best = null;
+
+      for (const angle of (piece.rotationLock ? [0] : rotAngles)) {
+        if (timeUp()) { stoppedByTime = true; break; }
+
+        const rotated = angle === 0
+          ? _normalizeToOrigin(piece.poly)
+          : _normalizeToOrigin(_rotatePoly(piece.poly, angle));
+
+        const bb = _getBBox(rotated);
+        if (bb.w > sw - 2*margin || bb.h > sh - 2*margin) continue;
+
+        const pos = _findPosition(placed, rotated, sw, sh, gap, margin, deadline);
+        if (!pos) continue;
+
+        const score = pos.y * sw * 2 + pos.x;
+        if (!best || score < best.score)
+          best = { pos, poly: rotated, angle, score };
+      }
+
+      if (stoppedByTime) {
+        unplaced.push(piece, ...remaining.slice(pi + 1));
+        break;
+      }
+
+      if (best) {
+        placed.push({
+          ...piece,
+          poly:    _translatePoly(best.poly, best.pos.x, best.pos.y),
+          angle:   best.angle,
+          sheetId: sheetDef.id,
+        });
+      } else {
+        unplaced.push(piece);
+      }
+
+      // Yield за да не блокираме Worker event loop
+      if (pi % 10 === 0) await _yield();
+    }
+
+    if (placed.length) {
+      const efficiency = _sheetEfficiency(placed, sw, sh);
+      allSheets.push({ sheetId: sheetDef.id, sheet: sheetDef, placements: placed, efficiency });
+      _log(`Лист ${sheetIdx+1}: ${placed.length} бр., ${efficiency.toFixed(1)}% ефективност`);
+    }
+
+    remaining = unplaced;
+    sheetIdx++;
+
+    if (stoppedByTime) break outer;
+  }
+
+  await _yield();
+  finish(stoppedByTime ? 'time' : 'done');
+}
+
+
+// ══════════════════════════════════════════════════════════════
+// ПОЗИЦИОНИРАНЕ — NFP Bottom-Left Fill
+// ══════════════════════════════════════════════════════════════
+
+/**
+ * _findPosition — намира най-ниско-вляво свободно място.
+ * Двустепенно сканиране: груб проход + фино прецизиране.
+ */
+function _findPosition(placed, poly, sw, sh, gap, margin, deadline) {
+  const bb       = _getBBox(poly);
+  const maxX     = sw - margin - bb.w;
+  const maxY     = sh - margin - bb.h;
+  if (maxX < margin || maxY < margin) return null;
+
+  const halfGap  = gap / 2;
+  const step     = Math.max(2, Math.min(bb.w, bb.h) / 10);
+  let best = null, bestScore = Infinity;
+
+  // ── Груб скан ────────────────────────────────────────────
+  for (let y = margin; y <= maxY; y += step) {
+    if (deadline && Date.now() >= deadline) return null;
+    for (let x = margin; x <= maxX; x += step) {
+      const score = y * sw * 2 + x;
+      if (score >= bestScore) continue;
+      if (_validPos(poly, placed, x, y, halfGap, margin, sw, sh)) {
+        bestScore = score;
+        best = { x, y };
+        break;  // BL: первото намерено в ред е достатъчно, мини на следващ ред
+      }
+    }
+  }
+  if (!best) return null;
+
+  // ── Фино прецизиране ─────────────────────────────────────
+  const fine = Math.max(0.5, step / 5);
+  const range = step * 1.5;
+  for (let y = Math.max(margin, best.y - range); y <= Math.min(maxY, best.y + range); y += fine) {
+    if (deadline && Date.now() >= deadline) return best;
+    for (let x = Math.max(margin, best.x - range); x <= Math.min(maxX, best.x + range); x += fine) {
+      const score = y * sw * 2 + x;
+      if (score >= bestScore) continue;
+      if (_validPos(poly, placed, x, y, halfGap, margin, sw, sh)) {
+        bestScore = score;
+        best = { x, y };
+      }
+    }
+  }
+
+  return best;
+}
+
+function _validPos(poly, placed, tx, ty, halfGap, margin, sw, sh) {
+  const moved = _translatePoly(poly, tx, ty);
+  const bb    = _getBBox(moved);
+
+  if (bb.minX < margin || bb.minY < margin ||
+      bb.maxX > sw - margin || bb.maxY > sh - margin) return false;
+
+  const expNew = halfGap > 0 ? _expandPoly(moved, halfGap) : moved;
+
+  for (const p of placed) {
+    const bb2 = _getBBox(p.poly);
+    // Бърза AABB проверка
+    if (bb.minX > bb2.maxX + halfGap * 2 || bb.maxX < bb2.minX - halfGap * 2 ||
+        bb.minY > bb2.maxY + halfGap * 2 || bb.maxY < bb2.minY - halfGap * 2) continue;
+    const expP = halfGap > 0 ? _expandPoly(p.poly, halfGap) : p.poly;
+    if (_satOverlap(expNew, expP)) return false;
+  }
+  return true;
+}
+
+// ══════════════════════════════════════════════════════════════
+// ГЕОМЕТРИЯ  (изолирана — не зависи от DXFParser)
+// ══════════════════════════════════════════════════════════════
+function _getBBox(pts) {
+  let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+  for (const p of pts) {
+    if(p.x<minX)minX=p.x; if(p.y<minY)minY=p.y;
+    if(p.x>maxX)maxX=p.x; if(p.y>maxY)maxY=p.y;
+  }
+  return { minX,minY,maxX,maxY, w:maxX-minX, h:maxY-minY };
+}
+
+function _normalizeToOrigin(poly) {
+  const bb = _getBBox(poly);
+  return poly.map(p => ({ x: p.x - bb.minX, y: p.y - bb.minY }));
+}
+
+function _translatePoly(poly, tx, ty) {
+  return poly.map(p => ({ x: p.x + tx, y: p.y + ty }));
+}
+
+function _rotatePoly(poly, deg) {
+  const r = deg * Math.PI / 180, cos = Math.cos(r), sin = Math.sin(r);
+  return poly.map(p => ({ x: p.x*cos - p.y*sin, y: p.x*sin + p.y*cos }));
+}
+
+/** Прост radial expand — достатъчен за gap enforcement */
+function _expandPoly(poly, d) {
+  if (d <= 0) return poly;
+  const cx = poly.reduce((s,p)=>s+p.x,0)/poly.length;
+  const cy = poly.reduce((s,p)=>s+p.y,0)/poly.length;
+  return poly.map(p => {
+    const dx=p.x-cx, dy=p.y-cy, len=Math.sqrt(dx*dx+dy*dy)||1;
+    return { x: p.x+dx/len*d, y: p.y+dy/len*d };
+  });
+}
+
+/** SAT — Separating Axis Theorem */
+function _satOverlap(A, B) {
+  for (const poly of [A, B]) {
+    for (let i=0; i<poly.length; i++) {
+      const j=(i+1)%poly.length;
+      const nx=poly[j].y-poly[i].y, ny=poly[i].x-poly[j].x;
+      let minA=Infinity,maxA=-Infinity,minB=Infinity,maxB=-Infinity;
+      for (const p of A) { const d=p.x*nx+p.y*ny; if(d<minA)minA=d; if(d>maxA)maxA=d; }
+      for (const p of B) { const d=p.x*nx+p.y*ny; if(d<minB)minB=d; if(d>maxB)maxB=d; }
+      if (minA > maxB || minB > maxA) return false;
+    }
+  }
+  return true;
+}
+
+function _sheetEfficiency(placements, sw, sh) {
+  const sheetArea = sw * sh;
+  if (!sheetArea) return 0;
+  const used = placements.reduce((s,p)=>{const b=_getBBox(p.poly);return s+b.w*b.h;},0);
+  return used / sheetArea * 100;
+}
+
+// ══════════════════════════════════════════════════════════════
+// НАСТРОЙКИ
+// ══════════════════════════════════════════════════════════════
+function _buildRotAngles(settings) {
+  const { rotation, rotStep } = settings;
+  if (!rotation || rotation === 'none') return [0];
+  if (rotation === '90')  return [0, 90, 180, 270];
+  if (rotation === '45')  return [0, 45, 90, 135, 180, 225, 270, 315];
+  // 'free' — стъпка rotStep градуса
+  const step = Math.max(1, rotStep || 3);
+  return Array.from({ length: Math.floor(360 / step) }, (_, i) => i * step);
+}
+
+// ══════════════════════════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════════════════════════
+const _yield = () => new Promise(r => setTimeout(r, 0));
+
+</script>
+
+<!-- ── Scripts (load order matters!) ── -->
+<script>
+/**
+ * dxf-parser.js  v2.0
+ * ─────────────────────────────────────────────────────────────
+ * Самостоятелен DXF парсер. Без UI зависимости.
+ * Работи в браузър, Node.js и Web Worker.
+ *
+ * Поддържани entity типове:
+ *   LINE, LWPOLYLINE (+ bulge), POLYLINE/VERTEX/SEQEND,
+ *   CIRCLE, ARC, ELLIPSE, SPLINE (De Boor), INSERT (блокове)
+ *
+ * Употреба:
+ *   const r = DXFParser.parse(dxfString);
+ *   r.contours  // [{ pts, bbox, area, layer }]
+ *   r.stats     // { totalEntities, byType }
+ *   r.warnings  // ['...']
+ */
+/**
+ * dxf-parser.js  v4.0
+ * ─────────────────────────────────────────────────────────────
+ * Standalone DXF parser. No UI dependencies.
+ * Works in browser, Node.js, Web Worker.
+ *
+ * KEY FIXES vs v2:
+ *  • LWPOLYLINE bulge: per-vertex association (not array-index)
+ *  • LINE chaining: correct endpoint matching (sp[0] not sp)
+ *  • Normalize AFTER chaining (not per-shape before)
+ *  • Inner/outer detection via containment tree (from cnc_cam_v9)
+ *  • Auto-detects nesting-result files (sheet+parts layout)
+ *
+ * parse(text) → {
+ *   parts:    [{ outerPoly, holes[], bbox, area, layer, poly }]
+ *   contours: [{ pts, bbox, area, layer, depth, source }]
+ *   header, warnings, stats
+ * }
+ */
+const DXFParser = (() => {
+
+  const TOLERANCE  = 0.01;
+  const ARC_STEP   = 2;
+  const SPLINE_PTS = 64;
+  const CHAIN_TOL  = 0.5;
+
+  // Module-level helper (needed by _parseLwPolylineVerts outside parseEntities)
+  const ai = v => Array.isArray(v) ? v : (v !== undefined ? [v] : []);
+
+  // ══════════════════════════════════════════════════
+  // 1. TOKENIZER
+  // ══════════════════════════════════════════════════
+  function tokenize(text) {
+    const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+    const tokens = [];
+    for (let i = 0; i + 1 < lines.length; i += 2) {
+      const code = parseInt(lines[i].trim(), 10);
+      if (!isNaN(code)) tokens.push({ code, value: lines[i + 1].trim() });
+    }
+    return tokens;
+  }
+
+  // ══════════════════════════════════════════════════
+  // 2. SECTIONS
+  // ══════════════════════════════════════════════════
+  function splitSections(tokens) {
+    const sections = {};
+    let i = 0;
+    while (i < tokens.length) {
+      if (tokens[i].code === 0 && tokens[i].value === 'SECTION') {
+        i++;
+        if (tokens[i]?.code === 2) {
+          const name = tokens[i].value;
+          const start = ++i;
+          while (i < tokens.length && !(tokens[i].code === 0 && tokens[i].value === 'ENDSEC')) i++;
+          sections[name] = tokens.slice(start, i);
+          i++;
+        }
+      } else { i++; }
+    }
+    return sections;
+  }
+
+  // ══════════════════════════════════════════════════
+  // 3. HEADER
+  // ══════════════════════════════════════════════════
+  function parseHeader(tokens) {
+    let insunits = 4, dimscale = 1;
+    for (let i = 0; i < tokens.length - 1; i++) {
+      if (tokens[i].code === 9) {
+        if (tokens[i].value === '$INSUNITS') insunits = parseInt(tokens[i+1]?.value) || 4;
+        if (tokens[i].value === '$DIMSCALE') dimscale = parseFloat(tokens[i+1]?.value) || 1;
+      }
+    }
+    const toMM = { 1: 25.4, 2: 304.8, 4: 1, 5: 10, 6: 1000 };
+    return { insunits, dimscale, mmScale: (toMM[insunits] || 1) * dimscale };
+  }
+
+  // ══════════════════════════════════════════════════
+  // 4. BLOCKS
+  // ══════════════════════════════════════════════════
+  function parseBlocks(tokens) {
+    const blocks = {};
+    let i = 0;
+    while (i < tokens.length) {
+      if (tokens[i].code === 0 && tokens[i].value === 'BLOCK') {
+        i++;
+        let name = '';
+        const bt = [];
+        while (i < tokens.length && !(tokens[i].code === 0 && tokens[i].value === 'ENDBLK')) {
+          if (tokens[i].code === 2) name = tokens[i].value;
+          bt.push(tokens[i++]);
+        }
+        if (name) blocks[name] = bt;
+      } else { i++; }
+    }
+    return blocks;
+  }
+
+  // ══════════════════════════════════════════════════
+  // 5. ENTITY PARSER
+  // ══════════════════════════════════════════════════
+  function parseEntities(tokens, blocks, mmScale) {
+    blocks  = blocks  || {};
+    mmScale = mmScale || 1;
+    const shapes = [];
+    let i = 0;
+    const sc = v => parseFloat(v || 0) * mmScale;
+    const f  = v => parseFloat(v || 0);
+
+    // collectProps: read group-code pairs until next entity (code 0).
+    // CRITICAL: track bulge(42) → vertex index mapping for LWPOLYLINE.
+    function collectProps() {
+      const p = {};
+      let yCount = 0;
+      const bulgeMap = [];
+      while (i < tokens.length) {
+        if (tokens[i].code === 0) break;
+        const { code, value } = tokens[i++];
+        if (code === 20) yCount++;           // each Y = one vertex completed
+        if (code === 42) bulgeMap.push([yCount - 1, parseFloat(value)]);
+        if (p[code] !== undefined) {
+          if (!Array.isArray(p[code])) p[code] = [p[code]];
+          p[code].push(value);
+        } else { p[code] = value; }
+      }
+      if (bulgeMap.length) p.__bulgeMap = bulgeMap;
+      return p;
+    }
+
+    function push(s) {
+      if (!s?.pts?.length) return;
+      s.pts = _dedup(s.pts);
+      if (s.pts.length >= 2) shapes.push(s);
+    }
+
+    while (i < tokens.length) {
+      const t = tokens[i];
+      if (t.code !== 0) { i++; continue; }
+      i++;
+      const type  = t.value.toUpperCase();
+      const props = collectProps();
+      const layer = props[8] || '0';
+
+      if (type === 'LINE') {
+        push({ pts:[{x:sc(props[10]),y:sc(props[20])},{x:sc(props[11]),y:sc(props[21])}],
+               closed:false, source:'LINE', layer });
+      }
+      else if (type === 'LWPOLYLINE') {
+        const closed = (parseInt(props[70]||'0') & 1) === 1;
+        const verts  = _parseLwPolylineVerts(props, sc, f);
+        if (verts.length >= 2)
+          push({ pts: _expandBulgesVerts(verts, closed), closed, source:'LWPOLYLINE', layer });
+      }
+      else if (type === 'POLYLINE') {
+        const closed = (parseInt(props[70]||'0') & 1) === 1;
+        const pts = [];
+        while (i < tokens.length) {
+          if (tokens[i].code === 0 && tokens[i].value === 'SEQEND') { i++; break; }
+          if (tokens[i].code === 0 && tokens[i].value === 'VERTEX') {
+            i++; const vp = collectProps();
+            pts.push({ x: sc(vp[10]), y: sc(vp[20]) });
+          } else { i++; }
+        }
+        push({ pts, closed, source:'POLYLINE', layer });
+      }
+      else if (type === 'CIRCLE') {
+        push({ pts:_circleArc(sc(props[10]),sc(props[20]),sc(props[40]),0,360,true),
+               closed:true, source:'CIRCLE', layer });
+      }
+      else if (type === 'ARC') {
+        push({ pts:_circleArc(sc(props[10]),sc(props[20]),sc(props[40]),f(props[50]),f(props[51]),false),
+               closed:false, source:'ARC', layer });
+      }
+      else if (type === 'ELLIPSE') {
+        const cx=sc(props[10]),cy=sc(props[20]),mx=sc(props[11]),my=sc(props[21]);
+        const ratio=f(props[40]),sa=f(props[41]||'0'),ea=f(props[42]||String(Math.PI*2));
+        const a=Math.sqrt(mx*mx+my*my),b=a*ratio,rot=Math.atan2(my,mx);
+        const steps=Math.max(36,Math.ceil((ea-sa)/(ARC_STEP*Math.PI/180)));
+        const pts=[];
+        for(let j=0;j<=steps;j++){const tt=sa+(ea-sa)*j/steps;pts.push({
+          x:cx+a*Math.cos(tt)*Math.cos(rot)-b*Math.sin(tt)*Math.sin(rot),
+          y:cy+a*Math.cos(tt)*Math.sin(rot)+b*Math.sin(tt)*Math.cos(rot)});}
+        push({ pts, closed:Math.abs(ea-sa-Math.PI*2)<0.01, source:'ELLIPSE', layer });
+      }
+      else if (type === 'SPLINE') {
+        const closed=(parseInt(props[70]||'0')&1)===1;
+        const degree=parseInt(props[71]||'3');
+        const knots=ai(props[40]).map(f);
+        const cxs=ai(props[10]).map(sc),cys=ai(props[20]).map(sc);
+        const ctrl=cxs.map((x,j)=>({x,y:cys[j]||0}));
+        if(ctrl.length>=2) push({ pts:_evalBSpline(ctrl,knots,degree,SPLINE_PTS),
+                                   closed, source:'SPLINE', layer });
+      }
+      else if (type === 'HATCH') {
+        _parseHatch(tokens, i, layer, sc, f).forEach(s => push(s));
+      }
+      else if (type === 'INSERT') {
+        const bn=props[2],ix=sc(props[10]),iy=sc(props[20]);
+        const sx=f(props[41]||'1'),sy=f(props[42]||'1'),rot=f(props[50]||'0')*Math.PI/180;
+        if (bn && blocks[bn]) {
+          parseEntities(blocks[bn], blocks, mmScale).forEach(sub => {
+            sub.pts=sub.pts.map(p=>({
+              x:ix+(p.x*sx)*Math.cos(rot)-(p.y*sy)*Math.sin(rot),
+              y:iy+(p.x*sx)*Math.sin(rot)+(p.y*sy)*Math.cos(rot)}));
+            sub.source='INSERT:'+bn;
+            shapes.push(sub);
+          });
+        }
+      }
+    }
+    return shapes;
+  }
+
+  // ══════════════════════════════════════════════════
+  // 6. LWPOLYLINE — per-vertex bulge (v9 approach)
+  // ══════════════════════════════════════════════════
+  function _parseLwPolylineVerts(props, sc, f) {
+    const xs = ai(props[10]);
+    const ys = ai(props[20]);
+    const verts = xs.map((x, j) => ({ x: sc(x), y: sc(ys[j] || '0'), bulge: 0 }));
+    if (props.__bulgeMap) {
+      for (const [vi, b] of props.__bulgeMap) {
+        if (vi >= 0 && vi < verts.length) verts[vi].bulge = b;
+      }
+    }
+    return verts;
+  }
+
+  function _expandBulgesVerts(verts, closed) {
+    if (!verts.some(v => Math.abs(v.bulge) > 1e-9))
+      return verts.map(v => ({ x: v.x, y: v.y }));
+    const result = [];
+    const n = closed ? verts.length : verts.length - 1;
+    for (let k = 0; k < verts.length; k++) {
+      result.push({ x: verts[k].x, y: verts[k].y });
+      if (k < n && Math.abs(verts[k].bulge) > 1e-9) {
+        const v2  = verts[(k + 1) % verts.length];
+        const arc = _bulgeToArc(verts[k].x, verts[k].y, v2.x, v2.y, verts[k].bulge);
+        if (arc) {
+          const steps = Math.max(4, Math.ceil(Math.abs(arc.span) / (ARC_STEP * Math.PI / 180)));
+          for (let s = 1; s < steps; s++) {
+            const a = arc.sa + arc.span * s / steps;
+            result.push({ x: arc.cx + arc.r * Math.cos(a), y: arc.cy + arc.r * Math.sin(a) });
+          }
+        }
+      }
+    }
+    if (!closed && verts.length > 0)
+      result.push({ x: verts[verts.length-1].x, y: verts[verts.length-1].y });
+    return result;
+  }
+
+  // Exact port of v9 Geometry.bulgeToArc
+  function _bulgeToArc(x1, y1, x2, y2, b) {
+    const dx=x2-x1, dy=y2-y1, d=Math.sqrt(dx*dx+dy*dy);
+    if (d < 1e-10) return null;
+    const alpha = 4*Math.atan(Math.abs(b));
+    const r     = d / (2*Math.sin(alpha/2));
+    const mx=(x1+x2)/2, my=(y1+y2)/2;
+    const h  = r*Math.cos(alpha/2);
+    const px = -dy/d, py = dx/d;
+    const sg = b > 0 ? 1 : -1;
+    const cx = mx+sg*h*px, cy = my+sg*h*py;
+    let sa = Math.atan2(y1-cy, x1-cx);
+    let ea = Math.atan2(y2-cy, x2-cx);
+    let span;
+    if (b > 0) { span=ea-sa; if(span<0) span+=2*Math.PI; }
+    else       { span=ea-sa; if(span>0) span-=2*Math.PI; }
+    return { cx, cy, r, sa, span };
+  }
+
+  // ══════════════════════════════════════════════════
+  // 7. HATCH PARSER
+  // ══════════════════════════════════════════════════
+  function _parseHatch(tokens, curI, layer, sc, f) {
+    let start = curI - 2;
+    while (start >= 0 && !(tokens[start]?.code === 0 && tokens[start]?.value === 'HATCH')) start--;
+    if (start < 0) return [];
+    const ht = [];
+    let j = start + 1;
+    while (j < tokens.length && tokens[j]?.code !== 0) ht.push(tokens[j++]);
+    return _parseHatchTokens(ht, layer, sc, f);
+  }
+
+  function _parseHatchTokens(ht, layer, sc, f) {
+    const shapes = [];
+    let j = 0;
+    const consume = () => ht[j++];
+    const expectCode = c => { while(j<ht.length && ht[j]?.code!==c) j++; return j<ht.length?consume():null; };
+
+    const t91 = expectCode(91);
+    const nLoops = t91 ? parseInt(t91.value) : 0;
+    if (!nLoops) return [];
+
+    for (let loop = 0; loop < nLoops; loop++) {
+      const t92 = expectCode(92); if (!t92) break;
+      const pathType  = parseInt(t92.value);
+      const isPolyline = (pathType & 2) !== 0;
+      const isIsland   = (pathType & 16) !== 0;
+      let pts = null;
+
+      if (isPolyline) {
+        const t93 = expectCode(93); const nV = t93 ? parseInt(t93.value) : 0;
+        let closed = true;
+        if (j < ht.length && ht[j]?.code === 72) { closed = parseInt(consume().value) === 1; }
+        const verts = [], bulges = [];
+        let vRead = 0;
+        while (j < ht.length && vRead < nV) {
+          const t = ht[j];
+          if (t?.code === 10) { consume(); const x=sc(t.value); const ty=ht[j]; if(ty?.code===20){consume();verts.push({x,y:sc(ty.value)});} }
+          else if (t?.code === 42) { consume(); bulges.push(f(t.value)); }
+          else if (t?.code === 97) break;
+          else consume();
+          if (ht[j-1]?.code === 20) vRead++;
+        }
+        if (verts.length >= 3) pts = bulges.length ? _expandBulgesVerts(
+          verts.map((v,i)=>({...v,bulge:bulges[i]||0})), closed) : verts;
+      } else {
+        const t93 = expectCode(93); const nEdges = t93 ? parseInt(t93.value) : 0;
+        const ep = [];
+        for (let e = 0; e < nEdges; e++) {
+          const t72 = expectCode(72); if (!t72) break;
+          const et = parseInt(t72.value);
+          if (et === 1) {
+            const x1=expectCode(10),y1=expectCode(20),x2=expectCode(11),y2=expectCode(21);
+            if(x1&&y1) ep.push({x:sc(x1.value),y:sc(y1.value)});
+            if(x2&&y2) ep.push({x:sc(x2.value),y:sc(y2.value)});
+          } else if (et === 2) {
+            const cx=expectCode(10),cy=expectCode(20),r=expectCode(40),sa=expectCode(50),ea=expectCode(51),ccw=expectCode(73);
+            if(cx&&cy&&r&&sa&&ea){
+              const arc=_circleArc(sc(cx.value),sc(cy.value),sc(r.value),f(sa.value),f(ea.value),false);
+              if(ccw&&parseInt(ccw.value)===0) arc.reverse();
+              ep.push(...arc);
+            }
+          } else if (et === 3) {
+            const cx=expectCode(10),cy=expectCode(20),mx=expectCode(11),my=expectCode(21),rat=expectCode(40),sa=expectCode(50),ea=expectCode(51),ccw=expectCode(73);
+            if(cx&&cy&&mx&&my&&rat&&sa&&ea){
+              const a=Math.sqrt(sc(mx.value)**2+sc(my.value)**2),b2=a*f(rat.value),rot=Math.atan2(sc(my.value),sc(mx.value));
+              const saR=f(sa.value)*Math.PI/180,eaR=f(ea.value)*Math.PI/180;
+              let da=eaR-saR;
+              if(ccw&&parseInt(ccw.value)===0&&da>0) da-=Math.PI*2;
+              if(ccw&&parseInt(ccw.value)===1&&da<0) da+=Math.PI*2;
+              const steps=Math.max(8,Math.ceil(Math.abs(da)/(ARC_STEP*Math.PI/180)));
+              for(let s=0;s<=steps;s++){const tt=saR+da*s/steps;ep.push({
+                x:sc(cx.value)+a*Math.cos(tt)*Math.cos(rot)-b2*Math.sin(tt)*Math.sin(rot),
+                y:sc(cy.value)+a*Math.cos(tt)*Math.sin(rot)+b2*Math.sin(tt)*Math.cos(rot)});}
+            }
+          } else if (et === 4) {
+            const deg=expectCode(94),_=expectCode(73),__=expectCode(74),nk=expectCode(75),nc=expectCode(76);
+            const degree=deg?parseInt(deg.value):3,nKnots=nk?parseInt(nk.value):0,nCtrl=nc?parseInt(nc.value):0;
+            const knots=[],ctrl=[];
+            for(let k=0;k<nKnots;k++){const tk=expectCode(40);if(tk)knots.push(f(tk.value));}
+            for(let c=0;c<nCtrl;c++){const tx=expectCode(10),ty=expectCode(20);if(tx&&ty)ctrl.push({x:sc(tx.value),y:sc(ty.value)});}
+            if(ctrl.length>=2) ep.push(..._evalBSpline(ctrl,knots,degree,SPLINE_PTS));
+          }
+        }
+        if (ep.length >= 3) pts = _dedup(ep);
+      }
+
+      if (pts?.length >= 3)
+        shapes.push({ pts, closed:true, source:'HATCH', layer, hatchIsland:isIsland });
+
+      while(j<ht.length && ht[j]?.code!==92 && ht[j]?.code!==75){
+        if(ht[j]?.code===97){j++;const n=parseInt(consume()?.value||'0');j+=n;break;}
+        j++;
+      }
+    }
+    return shapes;
+  }
+
+  // ══════════════════════════════════════════════════
+  // 8. CHAIN OPEN SEGMENTS → closed contours
+  // ══════════════════════════════════════════════════
+  function _chainSegments(openShapes) {
+    if (!openShapes.length) return [];
+    const segs = openShapes.map(s => ({ pts: s.pts, layer: s.layer, used: false }));
+    const chains = [];
+    const TOL2_THRESHOLD = CHAIN_TOL * CHAIN_TOL * 4;
+    const d2 = (a, b) => (a.x-b.x)**2 + (a.y-b.y)**2;
+
+    for (let si = 0; si < segs.length; si++) {
+      if (segs[si].used) continue;
+      segs[si].used = true;
+      const chain = { pts: [...segs[si].pts], layer: segs[si].layer };
+
+      let extended = true;
+      while (extended) {
+        extended = false;
+        const tail = chain.pts[chain.pts.length - 1];
+        let bestJ = -1, bestD = Infinity, bestRev = false;
+        for (let j = 0; j < segs.length; j++) {
+          if (segs[j].used) continue;
+          // FIX: use sp[0] (start point) and ep (end point), not the array itself
+          const sp = segs[j].pts[0], ep = segs[j].pts[segs[j].pts.length - 1];
+          const d1 = d2(tail, sp), dr = d2(tail, ep);
+          if (d1 < bestD) { bestD=d1; bestJ=j; bestRev=false; }
+          if (dr < bestD) { bestD=dr; bestJ=j; bestRev=true; }
+        }
+        if (bestJ >= 0 && bestD <= TOL2_THRESHOLD) {
+          segs[bestJ].used = true;
+          const nxt = bestRev ? [...segs[bestJ].pts].reverse() : segs[bestJ].pts;
+          chain.pts.push(...nxt.slice(1));
+          extended = true;
+        }
+      }
+      if (chain.pts.length >= 3) chains.push(chain);
+    }
+    return chains;
+  }
+
+  // ══════════════════════════════════════════════════
+  // 9. BUILD CONTOURS (raw shapes → normalized closed)
+  // ══════════════════════════════════════════════════
+  function _buildContours(shapes) {
+    const contours = [];
+    let uid = 0;
+
+    // IMPORTANT:
+    // DXF has one common coordinate system. The previous version flipped Y
+    // separately per contour using that contour's own maxY. That destroyed
+    // the relative positions between contours, so holes/inner objects were
+    // not assigned to their outer part correctly.
+    const closedShapes = shapes.filter(s => s.closed);
+    const chainedShapes = _chainSegments(shapes.filter(s => !s.closed))
+      .map(c => ({ ...c, source: c.source || 'CHAINED' }));
+    const allClosed = [...closedShapes, ...chainedShapes];
+
+    const globalMaxY = allClosed.length
+      ? Math.max(...allClosed.flatMap(s => (s.pts || []).map(p => p.y)))
+      : 0;
+
+    function add(rawPts, layer, source) {
+      let pts = _dedup(rawPts);
+      if (pts.length < 3) return;
+
+      // DXF Y-up → screen Y-down, but with GLOBAL maxY so containment stays valid.
+      const flipped = pts.map(p => ({ x: p.x, y: globalMaxY - p.y }));
+
+      const origBbox = getBBox(flipped);
+      const area     = Math.abs(polyArea(flipped));
+      if (area < 0.5) return;
+
+      // Normalized pts for each standalone outer part.
+      const normPts = flipped.map(p => ({ x: p.x - origBbox.minX, y: p.y - origBbox.minY }));
+
+      contours.push({
+        id:       uid++,
+        pts:      normPts,
+        origPts:  flipped,
+        bbox:     origBbox,
+        normBbox: getBBox(normPts),
+        area,
+        layer,
+        source,
+        depth: 0,
+      });
+    }
+
+    allClosed.forEach(s => add(s.pts, s.layer, s.source));
+
+    contours.sort((a, b) => b.area - a.area);
+
+    // Deduplicate near-identical contours, but don't accidentally remove
+    // small holes just because they have same size. Use center proximity too.
+    return contours.filter((a, i) =>
+      !contours.slice(0, i).some(b =>
+        Math.abs(a.bbox.w - b.bbox.w) < 0.5 &&
+        Math.abs(a.bbox.h - b.bbox.h) < 0.5 &&
+        Math.abs(a.bbox.cx - b.bbox.cx) < 0.5 &&
+        Math.abs(a.bbox.cy - b.bbox.cy) < 0.5 &&
+        Math.abs(a.area  - b.area)   < Math.max(1, a.area * 0.02)
+      ));
+  }
+
+  // ══════════════════════════════════════════════════
+  // 10. CONTAINMENT (ported from cnc_cam_v9)
+  // ══════════════════════════════════════════════════
+  function _bboxContains(o, i, eps = 0.1) {
+    return o.minX <= i.minX + eps && o.maxX >= i.maxX - eps &&
+           o.minY <= i.minY + eps && o.maxY >= i.maxY - eps;
+  }
+
+  function _containsContour(outer, inner) {
+    if (outer.id === inner.id) return false;
+    const ob = outer.bbox, ib = inner.bbox;
+    if (!_bboxContains(ob, ib)) return false;
+    const outerPts = outer.origPts || outer.pts;
+    const innerPts = inner.origPts || inner.pts;
+    const step = Math.max(1, Math.floor(innerPts.length / 36));
+    let inside = 0, total = 0;
+    for (let i = 0; i < innerPts.length; i += step) {
+      total++;
+      if (pointInPolygon(innerPts[i].x, innerPts[i].y, outerPts)) inside++;
+    }
+    if (!total || inside !== total) return false;
+    // Extra interior probes (v9 guard against razor-thin overlaps)
+    const tests = [
+      {x:ib.cx, y:ib.cy},
+      {x:ib.minX+(ib.maxX-ib.minX)*0.25, y:ib.cy},
+      {x:ib.minX+(ib.maxX-ib.minX)*0.75, y:ib.cy},
+      {x:ib.cx, y:ib.minY+(ib.maxY-ib.minY)*0.25},
+      {x:ib.cx, y:ib.minY+(ib.maxY-ib.minY)*0.75},
+    ];
+    let good = 0;
+    for (const t of tests) if (pointInPolygon(t.x, t.y, outerPts)) good++;
+    return good >= 3;
+  }
+
+  function _buildTree(contours) {
+    const sorted = [...contours].sort((a, b) => b.area - a.area);
+    const parent   = new Map();
+    const children = new Map();
+    sorted.forEach(c => children.set(c.id, []));
+
+    for (let i = 0; i < sorted.length; i++) {
+      const inner = sorted[i];
+      let best = null;
+      for (let j = 0; j < sorted.length; j++) {
+        if (i === j) continue;
+        const outer = sorted[j];
+        if (outer.area <= inner.area) continue;
+        if (!_bboxContains(outer.bbox, inner.bbox)) continue;
+        if (!_containsContour(outer, inner)) continue;
+        if (!best || outer.area < best.area) best = outer;
+      }
+      if (best) { parent.set(inner.id, best.id); children.get(best.id).push(inner.id); }
+    }
+
+    const depth = new Map();
+    const getDepth = id => {
+      if (depth.has(id)) return depth.get(id);
+      const pid = parent.get(id);
+      const d = pid == null ? 0 : getDepth(pid) + 1;
+      depth.set(id, d); return d;
+    };
+    sorted.forEach(c => getDepth(c.id));
+    return { parent, children, depth };
+  }
+
+  // ══════════════════════════════════════════════════
+  // 11. PARTS ASSEMBLY
+  // ══════════════════════════════════════════════════
+  function _assembleParts(contours) {
+    if (!contours.length) return [];
+
+    const contourMap = new Map(contours.map(c => [c.id, c]));
+    const { children, depth } = _buildTree(contours);
+    contours.forEach(c => { c.depth = depth.get(c.id) || 0; });
+
+    // Auto-detect nesting result (sheet+parts layout):
+    // In sheet DXF files there is usually one depth-0 sheet rectangle and
+    // many depth-1 real parts. These depth-1 parts may contain depth-2 holes.
+    const d0 = contours.filter(c => c.depth === 0);
+    const d1 = contours.filter(c => c.depth === 1);
+    const sheetLike = d0.filter(c =>
+      c.layer === 'Sheet' ||
+      c.source === 'RECTANGLE' ||
+      (c.normBbox.w > 1000 && c.normBbox.h > 500 && c.area > 500000)
+    );
+    const isResult = d0.length >= 1 && d1.length >= Math.max(3, d0.length * 2);
+    const base = isResult ? 1 : 0;
+
+    const parts    = [];
+    const assigned = new Set();
+    const sorted   = [...contours].sort((a, b) => b.area - a.area);
+
+    // Skip sheet boundaries in result files
+    if (isResult) contours.filter(c => c.depth < base).forEach(c => assigned.add(c.id));
+
+    function holePtsRelativeToOuter(hole, outer) {
+      const pts = hole.origPts || hole.pts || [];
+      // Convert hole from global flipped coordinates into the outer part's
+      // normalized coordinate space. This preserves exact position inside part.
+      return pts.map(p => ({
+        x: p.x - outer.bbox.minX,
+        y: p.y - outer.bbox.minY,
+      }));
+    }
+
+    function addPartFromOuter(outer) {
+      assigned.add(outer.id);
+
+      const holeContours = (children.get(outer.id) || [])
+        .map(id => contourMap.get(id))
+        .filter(h => h && !assigned.has(h.id) && h.depth === outer.depth + 1)
+        .sort((a, b) => b.area - a.area);
+
+      holeContours.forEach(h => assigned.add(h.id));
+
+      parts.push({
+        id:        parts.length,
+        outerPoly: outer.pts,
+        holes:     holeContours.map(h => holePtsRelativeToOuter(h, outer)),
+        holeMeta:  holeContours.map(h => ({ layer:h.layer, source:h.source, bbox:h.bbox, area:h.area })),
+        bbox:      outer.normBbox,
+        area:      outer.area,
+        layer:     outer.layer,
+        source:    outer.source,
+        poly:      outer.pts,
+      });
+    }
+
+    for (const outer of sorted) {
+      if (assigned.has(outer.id) || outer.depth !== base) continue;
+      addPartFromOuter(outer);
+    }
+
+    // Remaining even-depth islands → standalone parts.
+    for (const c of sorted) {
+      if (assigned.has(c.id)) continue;
+      if ((c.depth - base) % 2 !== 0) continue;
+      addPartFromOuter(c);
+    }
+
+    return parts;
+  }
+
+  // ══════════════════════════════════════════════════
+  // 12. MAIN PARSE
+  // ══════════════════════════════════════════════════
+  function parse(text) {
+    const warnings = [];
+    if (!text || typeof text !== 'string')
+      return { parts:[], contours:[], header:{mmScale:1}, warnings:['Невалиден вход'], stats:{} };
+
+    const tokens   = tokenize(text);
+    const sections = splitSections(tokens);
+    const header   = sections.HEADER ? parseHeader(sections.HEADER) : { mmScale:1 };
+    const blocks   = sections.BLOCKS ? parseBlocks(sections.BLOCKS) : {};
+
+    if (!sections.ENTITIES?.length) warnings.push('Не е намерена ENTITIES секция');
+
+    let rawShapes;
+    try { rawShapes = parseEntities(sections.ENTITIES || [], blocks, header.mmScale); }
+    catch(e) { warnings.push('Parse error: '+e.message); rawShapes = []; }
+
+    const contours = _buildContours(rawShapes);
+    if (!contours.length && rawShapes.length)
+      warnings.push('Entities намерени, но без затворени контури');
+
+    const parts = _assembleParts(contours);
+
+    const stats = {
+      totalEntities: rawShapes.length,
+      totalContours: contours.length,
+      totalParts:    parts.length,
+      withHoles:     parts.filter(p => p.holes.length > 0).length,
+      byType: {},
+    };
+    rawShapes.forEach(s => { stats.byType[s.source]=(stats.byType[s.source]||0)+1; });
+
+    return { parts, contours, header, warnings, stats };
+  }
+
+  // ══════════════════════════════════════════════════
+  // 13. GEOMETRY UTILS
+  // ══════════════════════════════════════════════════
+  function _circleArc(cx, cy, r, sa, ea, full) {
+    if (full) { sa=0; ea=360; }
+    if (ea < sa) ea += 360;
+    const steps = Math.max(4, Math.ceil((ea-sa)/ARC_STEP));
+    return Array.from({length:steps+1},(_,i)=>{
+      const a=(sa+(ea-sa)*i/steps)*Math.PI/180;
+      return {x:cx+r*Math.cos(a),y:cy+r*Math.sin(a)};
+    });
+  }
+
+  function _evalBSpline(ctrl, knots, degree, n) {
+    const deg = Math.min(degree, ctrl.length-1);
+    if (!knots.length) { const m=ctrl.length+deg+1; knots=Array.from({length:m},(_,i)=>i/(m-1)); }
+    const tMin=knots[deg], tMax=knots[knots.length-deg-1];
+    return Array.from({length:n+1},(_,s)=>_deBoor(deg,ctrl,knots,tMin+(tMax-tMin)*s/n));
+  }
+
+  function _deBoor(deg, ctrl, knots, t) {
+    let k=deg;
+    for(let j=deg;j<knots.length-deg-1;j++){if(knots[j]<=t&&t<=knots[j+1]){k=j;break;}}
+    const d=ctrl.slice(Math.max(0,k-deg),k+1).map(p=>({...p}));
+    for(let r=1;r<=deg;r++){
+      for(let j=deg;j>=r;j--){
+        const idx=j+k-deg;
+        if(idx<0||idx+deg-r+1>=knots.length)continue;
+        const den=knots[idx+deg-r+1]-knots[idx];
+        const a=den<1e-12?0:(t-knots[idx])/den;
+        const dj=d[j]||ctrl[ctrl.length-1],dj1=d[j-1]||ctrl[0];
+        d[j]={x:(1-a)*dj1.x+a*dj.x,y:(1-a)*dj1.y+a*dj.y};
+      }
+    }
+    return d[deg]||ctrl[ctrl.length-1];
+  }
+
+  function _dedup(pts) {
+    const TOL2=TOLERANCE*TOLERANCE, r=[pts[0]];
+    for(let i=1;i<pts.length;i++){
+      const p=r[r.length-1];
+      if((pts[i].x-p.x)**2+(pts[i].y-p.y)**2>TOL2) r.push(pts[i]);
+    }
+    return r;
+  }
+
+  function getBBox(pts) {
+    let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+    for(const p of pts){if(p.x<minX)minX=p.x;if(p.y<minY)minY=p.y;if(p.x>maxX)maxX=p.x;if(p.y>maxY)maxY=p.y;}
+    return{minX,minY,maxX,maxY,w:maxX-minX,h:maxY-minY,cx:(minX+maxX)/2,cy:(minY+maxY)/2};
+  }
+
+  function normalizeToOrigin(pts) {
+    const bb=getBBox(pts); return pts.map(p=>({x:p.x-bb.minX,y:p.y-bb.minY}));
+  }
+
+  function flipY(pts) {
+    const maxY=Math.max(...pts.map(p=>p.y)); return pts.map(p=>({x:p.x,y:maxY-p.y}));
+  }
+
+  function polyArea(pts) {
+    let a=0;
+    for(let i=0;i<pts.length;i++){const j=(i+1)%pts.length;a+=pts[i].x*pts[j].y-pts[j].x*pts[i].y;}
+    return a/2;
+  }
+
+  function pointInPolygon(px, py, pts) {
+    let ins=false;
+    for(let i=0,j=pts.length-1;i<pts.length;j=i++){
+      const xi=pts[i].x,yi=pts[i].y,xj=pts[j].x,yj=pts[j].y;
+      if(((yi>py)!==(yj>py))&&px<(xj-xi)*(py-yi)/(yj-yi)+xi)ins=!ins;
+    }
+    return ins;
+  }
+
+  return {
+    parse, parseEntities,
+    getBBox, normalizeToOrigin, flipY, polyArea, pointInPolygon,
+    TOLERANCE,
+  };
+
+})();
+
+if (typeof module !== 'undefined') module.exports = DXFParser;
+
+</script>
+<script>
+// ═══════════════════════════════════════════════════════════════
+// DXF-EXPORTER.JS — изход: DXF, SVG, PDF
+// ═══════════════════════════════════════════════════════════════
+
+const DXFExporter = (() => {
+
+  const DXF_COLORS = [1,3,5,6,4,2,7,8,9,10,11,12,13,14,15];
+
+  // ── DXF Export ───────────────────────────────────────────────
+  function exportDXF(nestResult, options = {}) {
+    const {
+      separateLayers = true,
+      includeLabels  = true,
+      unit           = 'mm',        // 'mm' | 'inch'
+      sheetSpacing   = 100,         // vertical gap between sheets in export
+    } = options;
+
+    const { sheets } = nestResult;
+    let dxf = _dxfHeader(unit);
+    dxf += _dxfTables(sheets, separateLayers);
+    dxf += _dxfEntities(sheets, separateLayers, includeLabels, sheetSpacing);
+    dxf += '0\nEOF\n';
+    return dxf;
+  }
+
+  function _dxfHeader(unit) {
+    const insunits = unit === 'inch' ? 1 : 4; // 4 = millimeters
+    return [
+      '0', 'SECTION', '2', 'HEADER',
+      '9', '$ACADVER', '1', 'AC1015',
+      '9', '$INSUNITS', '70', String(insunits),
+      '9', '$MEASUREMENT', '70', unit === 'inch' ? '0' : '1',
+      '0', 'ENDSEC',
+    ].join('\n') + '\n';
+  }
+
+  function _dxfTables(sheets, separateLayers) {
+    const layers = ['SHEET_BORDER'];
+    sheets.forEach((_, i) => layers.push(`PARTS_${i + 1}`, `LABELS_${i + 1}`));
+
+    let t = '0\nSECTION\n2\nTABLES\n';
+    t += `0\nTABLE\n2\nLAYER\n70\n${layers.length}\n`;
+    t += `0\nLAYER\n2\nSHEET_BORDER\n70\n0\n62\n7\n6\nCONTINUOUS\n`;
+    sheets.forEach((_, i) => {
+      const ci = DXF_COLORS[i % DXF_COLORS.length];
+      t += `0\nLAYER\n2\nPARTS_${i+1}\n70\n0\n62\n${ci}\n6\nCONTINUOUS\n`;
+      t += `0\nLAYER\n2\nLABELS_${i+1}\n70\n0\n62\n${ci}\n6\nCONTINUOUS\n`;
+    });
+    t += '0\nENDTAB\n0\nENDSEC\n';
+    return t;
+  }
+
+  function _dxfEntities(sheets, separateLayers, includeLabels, sheetSpacing) {
+    let e = '0\nSECTION\n2\nENTITIES\n';
+
+    sheets.forEach((sheetResult, si) => {
+      const { sheet, placements } = sheetResult;
+      const sw = sheet.width, sh = sheet.height;
+      const oy = si * (sh + sheetSpacing); // vertical offset per sheet
+
+      // Sheet border
+      e += _lwPolyline([
+        [0, oy], [sw, oy], [sw, sh + oy], [0, sh + oy]
+      ], 'SHEET_BORDER', true);
+
+      // Each part
+      const partLayer  = separateLayers ? `PARTS_${si+1}`  : 'PARTS_0';
+      const labelLayer = separateLayers ? `LABELS_${si+1}` : 'LABELS_0';
+
+      for (const p of placements) {
+        // DXF Y is flipped (Y-up), nesting uses Y-down
+        const dxfPts = p.poly.map(pt => [pt.x, sh - pt.y + oy]);
+        e += _lwPolyline(dxfPts, partLayer, true);
+
+        if (includeLabels) {
+          const bb = _bbox(p.poly);
+          const lx = (bb.minX + bb.maxX) / 2;
+          const ly = sh - (bb.minY + bb.maxY) / 2 + oy;
+          const h = Math.max(4, Math.min(12, bb.h * 0.12));
+          e += _text(p.name || '', lx, ly, h, labelLayer);
+          // Dimensions
+          if (bb.w > 20 && bb.h > 20) {
+            e += _text(`${bb.w.toFixed(0)}×${bb.h.toFixed(0)}`, lx, ly - h * 1.4, h * 0.7, labelLayer);
+          }
+          if (p.angle && p.angle !== 0) {
+            e += _text(`${p.angle}°`, lx, ly - h * 2.8, h * 0.7, labelLayer);
+          }
+        }
+      }
+    });
+
+    e += '0\nENDSEC\n';
+    return e;
+  }
+
+  function _lwPolyline(pts, layer, closed) {
+    let s = `0\nLWPOLYLINE\n8\n${layer}\n70\n${closed ? 1 : 0}\n90\n${pts.length}\n`;
+    pts.forEach(([x, y]) => { s += `10\n${x.toFixed(6)}\n20\n${y.toFixed(6)}\n`; });
+    return s;
+  }
+
+  function _text(str, x, y, h, layer) {
+    return `0\nTEXT\n8\n${layer}\n10\n${x.toFixed(4)}\n20\n${y.toFixed(4)}\n30\n0\n40\n${h.toFixed(4)}\n1\n${str}\n72\n1\n11\n${x.toFixed(4)}\n21\n${y.toFixed(4)}\n`;
+  }
+
+  // ── SVG Export ───────────────────────────────────────────────
+  function exportSVG(nestResult, options = {}) {
+    const { sheetSpacing = 60, includeLabels = true } = options;
+    const { sheets } = nestResult;
+    if (!sheets || !sheets.length) return '';
+
+    const maxW = Math.max(...sheets.map(s => s.sheet.width));
+    const totalH = sheets.reduce((s, r) => s + r.sheet.height + sheetSpacing, 0);
+
+    let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 ${maxW + 20} ${totalH + 20}" style="background:#f5f5f3">\n`;
+    svg += `<style>text{font-family:monospace;font-size:10px;fill:#555}.lbl{font-size:8px;fill:#888}
+
+/* ════════════════════════════════════════════════════════
+   v UI-2 — Clean Nest screen like reference
+   - no black canvas/status areas on Step 2 setup
+   - no internal horizontal split/tabs
+   - Step 2 is a white Sheets + Nesting settings screen
+════════════════════════════════════════════════════════ */
+#step-2 .s2-tabbar,
+#step-2 #s2-panel-nest,
+#step-2 #s2-panel-stats,
+#step-2 #s2-right-detail,
+#step-2 #s2-right-summary,
+#step-2 #s2-right-export {
+  display: none !important;
+}
+#step-2 #s2-panel-sheets {
+  display: flex !important;
+  background: var(--bg-panel);
+}
+#step-2 .s2-layout {
+  grid-template-columns: minmax(0,1fr) 360px;
+  background: var(--bg-panel);
+}
+#step-2 .s2-left {
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border);
+}
+#step-2 .s2-right {
+  background: var(--bg-panel);
+  border-left: none !important;
+  overflow-y: auto;
+}
+#step-2 .s2-sheets-toolbar {
+  height: 52px;
+  padding: 8px 18px;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+}
+#step-2 #s2-sheet-preset { display:none; }
+#step-2 .sheets-list {
+  background: var(--bg-panel);
+}
+#step-2 .empty-state {
+  border-top: 1px solid var(--border);
+  padding-top: 18px;
+  color: var(--text2);
+}
+#step-2 #s2-right-settings {
+  display:block !important;
+  padding: 18px 22px 22px;
+  border-bottom: 1px solid var(--border);
+}
+#step-2 #s2-settings-toggle {
+  cursor: default !important;
+  font-size: 20px;
+  line-height: 1.2;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text);
+  font-weight: 700;
+  margin-bottom: 22px;
+}
+#step-2 #s2-settings-toggle::first-letter { color: inherit; }
+#step-2 #s2-settings-chevron { display:none !important; }
+#step-2 #s2-settings-body { display:block !important; }
+#step-2 .sfield { margin-bottom: 14px !important; }
+#step-2 .sfield label {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 5px;
+}
+#step-2 .sfield input,
+#step-2 .sfield select {
+  height: 34px;
+  border-radius: 4px;
+  background: #fff;
+  border: 1px solid var(--border);
+  font-size: 13px;
+}
+#step-2 #s2-right-start {
+  margin-top: auto;
+  border-top: 1px solid var(--border) !important;
+  background: var(--bg-panel);
+  padding: 16px 22px;
+}
+#step-2 #s2-start-btn {
+  height: 44px;
+  border-radius: 0;
+  font-size: 15px;
+  justify-content: center;
+}
+#step-2 #s2-stop-btn { border-radius:0; }
+#step-2 #s2-progress-wrap {
+  border-top: 1px solid var(--border);
+  background: var(--bg-panel);
+}
+#step-2 .s2-canvas-toolbar,
+#step-2 .s2-canvas-wrap,
+#step-2 .s2-canvas-status {
+  display:none !important;
+}
+
+</style>\n`;
+
+    let yOffset = 0;
+    sheets.forEach((sheetResult, si) => {
+      const { sheet, placements, efficiency } = sheetResult;
+      const sw = sheet.width, sh = sheet.height;
+
+      svg += `<g id="sheet-${si+1}">\n`;
+      svg += `<rect x="0" y="${yOffset}" width="${sw}" height="${sh}" fill="#fafaf8" stroke="#ccc" stroke-width="1"/>\n`;
+      svg += `<text x="${sw/2}" y="${yOffset - 4}" text-anchor="middle" fill="#999">Лист ${si+1} — ${efficiency.toFixed(1)}%</text>\n`;
+
+      for (const p of placements) {
+        const pts = p.poly.map(pt => `${pt.x.toFixed(2)},${(pt.y + yOffset).toFixed(2)}`).join(' ');
+        svg += `<polygon points="${pts}" fill="${p.color}44" stroke="${p.color}" stroke-width="0.8"/>\n`;
+        if (includeLabels) {
+          const bb = _bbox(p.poly);
+          const lx = (bb.minX + bb.maxX) / 2;
+          const ly = (bb.minY + bb.maxY) / 2 + yOffset;
+          svg += `<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" dominant-baseline="middle">${p.name}</text>\n`;
+        }
+      }
+      svg += `</g>\n`;
+      yOffset += sh + sheetSpacing;
+    });
+
+    svg += '</svg>';
+    return svg;
+  }
+
+  // ── CSV Report ───────────────────────────────────────────────
+  function exportCSV(nestResult) {
+    const rows = ['Sheet,Part name,X (mm),Y (mm),W (mm),H (mm),Rotation (°),Area (mm²)'];
+    nestResult.sheets.forEach((sr, si) => {
+      sr.placements.forEach(p => {
+        const bb = _bbox(p.poly);
+        rows.push([
+          si + 1,
+          `"${p.name}"`,
+          bb.minX.toFixed(2),
+          bb.minY.toFixed(2),
+          bb.w.toFixed(2),
+          bb.h.toFixed(2),
+          (p.angle || 0).toFixed(1),
+          (bb.w * bb.h).toFixed(2)
+        ].join(','));
+      });
+    });
+    return rows.join('\n');
+  }
+
+  // ── Utility ──────────────────────────────────────────────────
+  function download(filename, content, mime = 'text/plain') {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([content], { type: mime }));
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+
+  function _bbox(pts) {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const p of pts) {
+      if (p.x < minX) minX = p.x; if (p.y < minY) minY = p.y;
+      if (p.x > maxX) maxX = p.x; if (p.y > maxY) maxY = p.y;
+    }
+    return { minX, minY, maxX, maxY, w: maxX - minX, h: maxY - minY };
+  }
+
+  return { exportDXF, exportSVG, exportCSV, download };
+})();
+
+</script>
+<script>
+// ═══════════════════════════════════════════════════════════════
+// APP.JS — главен контролер, state машина, routing между стъпки
+// ═══════════════════════════════════════════════════════════════
+
+const App = (() => {
+
+  // ── Глобален State ──────────────────────────────────────────
+  const state = {
+    currentStep: 1,        // 1=Set, 2=Nest, 3=Cut
+    projectName: 'Untitled project',
+
+    // Step 1 — детайли
+    parts: [],             // { id, name, filename, poly[], bbox, qty, color, rotationLock, mirror, source:'dxf'|'svg'|'manual' }
+
+    // Step 2 — лист и настройки
+    sheets: [],            // { id, name, width, height, qty }
+    nestSettings: {
+      partGap: 6.5,
+      sheetBorderGap: 2,
+      rotation: 'free',    // 'none'|'90'|'45'|'free'
+      rotStep: 3,
+      nestingTime: 60,     // seconds, controlled by Quality slider: 60–180 sec
+      quality: 0,          // 0=fast, 50=balanced, 100=quality
+      allowMirror: false,
+    },
+
+    // Step 3 — резултат
+    nestResult: null,      // { sheets: [{placements:[]}], efficiency, unplaced[] }
+    nestProgress: 0,
+    nestRunning: false,
+  };
+
+  // ── Event Bus ───────────────────────────────────────────────
+  const _listeners = {};
+  const on  = (ev, fn) => (_listeners[ev] = _listeners[ev]||[]).push(fn);
+  const off = (ev, fn) => _listeners[ev] = (_listeners[ev]||[]).filter(f=>f!==fn);
+  const emit = (ev, data) => (_listeners[ev]||[]).forEach(fn => fn(data));
+
+  // ── Navigation ──────────────────────────────────────────────
+  function goToStep(n) {
+    if (n < 1 || n > 3) return;
+    if (n > 1 && state.parts.length === 0) {
+      showToast('Добавете поне един детайл!', 'warn');
+      return;
+    }
+    if (n > 2 && state.sheets.length === 0) {
+      showToast('Добавете поне един лист!', 'warn');
+      return;
+    }
+    state.currentStep = n;
+    emit('step:change', n);
+    _renderStep(n);
+    _updateStepHeader(n);
+  }
+
+  function _updateStepHeader(n) {
+    document.querySelectorAll('.step-btn').forEach((el, i) => {
+      el.classList.toggle('active', i + 1 === n);
+      el.classList.toggle('done', i + 1 < n);
+    });
+  }
+
+  function _renderStep(n) {
+    document.querySelectorAll('.step-view').forEach(el => el.hidden = true);
+    const el = document.getElementById(`step-${n}`);
+    if (el) el.hidden = false;
+  }
+
+  // ── Parts CRUD ──────────────────────────────────────────────
+  function addPart(partData) {
+    const part = {
+      id: Date.now() + Math.random(),
+      color: COLORS[state.parts.length % COLORS.length],
+      qty: 1,
+      rotationLock: false,
+      mirror: false,
+      ...partData
+    };
+    state.parts.push(part);
+    emit('parts:change', state.parts);
+    return part;
+  }
+
+  function updatePart(id, changes) {
+    const idx = state.parts.findIndex(p => p.id === id);
+    if (idx < 0) return;
+    state.parts[idx] = { ...state.parts[idx], ...changes };
+    emit('parts:change', state.parts);
+    emit('part:update', state.parts[idx]);
+  }
+
+  function removePart(id) {
+    state.parts = state.parts.filter(p => p.id !== id);
+    emit('parts:change', state.parts);
+  }
+
+  function clearParts() {
+    state.parts = [];
+    emit('parts:change', state.parts);
+  }
+
+  // ── Sheets CRUD ─────────────────────────────────────────────
+  function addSheet(data) {
+    const sheet = {
+      id: Date.now() + Math.random(),
+      name: `Sheet ${state.sheets.length + 1}`,
+      width: 1220, height: 2440, qty: 1,
+      ...data
+    };
+    state.sheets.push(sheet);
+    emit('sheets:change', state.sheets);
+    return sheet;
+  }
+
+  function updateSheet(id, changes) {
+    const idx = state.sheets.findIndex(s => s.id === id);
+    if (idx < 0) return;
+    state.sheets[idx] = { ...state.sheets[idx], ...changes };
+    emit('sheets:change', state.sheets);
+  }
+
+  function removeSheet(id) {
+    state.sheets = state.sheets.filter(s => s.id !== id);
+    emit('sheets:change', state.sheets);
+  }
+
+  // ── Nesting ─────────────────────────────────────────────────
+  let _worker = null;
+
+  function startNesting() {
+    if (state.nestRunning) return;
+    if (!state.parts.length || !state.sheets.length) {
+      showToast('Нужни са детайли и листа!', 'warn');
+      return;
+    }
+    state.nestRunning = true;
+    state.nestProgress = 0;
+    state.nestResult = null;
+    emit('nesting:start', null);
+
+    // Spawn worker
+    const workerCode = document.getElementById('nesting-worker-src');
+    const blob = new Blob([workerCode ? workerCode.textContent : ''], { type: 'application/javascript' });
+    const url = URL.createObjectURL(blob);
+
+    _worker = new Worker(url);
+    URL.revokeObjectURL(url);
+
+    _worker.onmessage = (e) => {
+      const { type, data } = e.data;
+      if (type === 'progress') {
+        state.nestProgress = data.pct;
+        emit('nesting:progress', data);
+      } else if (type === 'result') {
+        state.nestResult = data;
+        state.nestRunning = false;
+        _worker = null;
+        const step2 = document.getElementById('step-2');
+        if (step2) {
+          step2.setAttribute('data-nest-result', '1');
+          step2.setAttribute('data-active-s2tab', 'nest');
+        }
+        const nestPanel = document.getElementById('s2-panel-nest');
+        const sheetsPanel = document.getElementById('s2-panel-sheets');
+        if (nestPanel) nestPanel.hidden = false;
+        if (sheetsPanel) sheetsPanel.hidden = true;
+        emit('nesting:done', data);
+        setTimeout(() => {
+          const el = document.getElementById('supernest-sheet-count-bottom');
+          const bottomStatus = document.getElementById('bottom-status');
+          const usedSheets = (data.sheets || []).filter(s => s.placements && s.placements.length).length;
+          if (bottomStatus && !el) {
+            const n = document.createElement('span');
+            n.id = 'supernest-sheet-count-bottom';
+            n.style.marginLeft = '14px';
+            bottomStatus.appendChild(n);
+          }
+          const out = document.getElementById('supernest-sheet-count-bottom');
+          if (out) out.innerHTML = '<span class="sn-pill">' + usedSheets + '</span> лист' + (usedSheets === 1 ? '' : 'а') + ' · ' + (data.totalPlaced || 0) + '/' + (data.totalPieces || 0) + ' части';
+        }, 40);
+        goToStep(2);
+        setTimeout(() => {
+          try { if (window.Step2 && typeof window.Step2.fitView === 'function') window.Step2.fitView(); } catch(e) {}
+          try { window.dispatchEvent(new Event('resize')); } catch(e) {}
+        }, 80);
+      } else if (type === 'log') {
+        emit('nesting:log', data);
+      }
+    };
+
+    _worker.onerror = (e) => {
+      console.error('Worker error:', e);
+      state.nestRunning = false;
+      showToast('Грешка в нестинг модула: ' + e.message, 'error');
+      emit('nesting:error', e);
+    };
+
+    // Expand parts into individual pieces
+    const pieces = [];
+    state.parts.forEach(p => {
+      for (let i = 0; i < p.qty; i++) {
+        pieces.push({ id: p.id + '_' + i, partId: p.id, name: p.name, poly: p.poly, bbox: p.bbox, color: p.color, rotationLock: p.rotationLock });
+      }
+    });
+
+    _worker.postMessage({
+      type: 'start',
+      data: {
+        pieces,
+        sheets: state.sheets,
+        settings: {
+          ...state.nestSettings,
+          quality: Math.max(0, Math.min(100, Number(state.nestSettings.quality) || 0)),
+          nestingTime: Math.max(60, Math.min(180, Number(state.nestSettings.nestingTime) || 60)),
+          timeLimitMs: Math.max(60000, Math.min(180000, Number(state.nestSettings.timeLimitMs) || ((Number(state.nestSettings.nestingTime) || 60) * 1000))),
+        },
+      }
+    });
+  }
+
+  function stopNesting() {
+    if (_worker) { _worker.terminate(); _worker = null; }
+    state.nestRunning = false;
+    emit('nesting:stop', null);
+  }
+
+  // ── Project ─────────────────────────────────────────────────
+  function setProjectName(name) {
+    state.projectName = name;
+    emit('project:rename', name);
+  }
+
+  function exportProject() {
+    const data = JSON.stringify({ parts: state.parts.map(p=>({...p,poly:p.poly})), sheets: state.sheets, settings: state.nestSettings });
+    _download('project.nestjson', data, 'application/json');
+  }
+
+  function _download(filename, text, mime='text/plain') {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([text], { type: mime }));
+    a.download = filename;
+    a.click();
+  }
+
+  // ── Toast ───────────────────────────────────────────────────
+  function showToast(msg, type='info') {
+    const el = document.getElementById('toast-container');
+    if (!el) return;
+    const t = document.createElement('div');
+    t.className = `toast toast-${type}`;
+    t.textContent = msg;
+    el.appendChild(t);
+    setTimeout(() => t.classList.add('show'), 10);
+    setTimeout(() => { t.classList.remove('show'); setTimeout(()=>t.remove(),300); }, 3200);
+  }
+
+  // ── Init ────────────────────────────────────────────────────
+  function init() {
+    _renderStep(1);
+    _updateStepHeader(1);
+    emit('app:ready', null);
+  }
+
+  // ── Public API ──────────────────────────────────────────────
+  return {
+    state, on, off, emit,
+    goToStep,
+    addPart, updatePart, removePart, clearParts,
+    addSheet, updateSheet, removeSheet,
+    startNesting, stopNesting,
+    setProjectName, exportProject,
+    showToast, init,
+  };
+})();
+
+// Color palette for parts
+const COLORS = [
+  '#4A9EE8','#E8753A','#5CB87A','#B45CE8','#E83A75',
+  '#3AE8D4','#E8B83A','#7A5CE8','#E85C5C','#3AE875',
+  '#E8D43A','#5C8CE8','#E85CA0','#3AB4E8','#A0E83A',
+];
+
+</script>
+<script>
+/**
+ * step1-set.js  — IMPORT tab + SET tab
+ */
+window.__valinorAppRef = (typeof App !== 'undefined') ? App : window.App;
+const Step1 = (() => {
+
+  // ── Init ───────────────────────────────────────────────────
+  function init() {
+    _bindTabs();
+    _bindDropZone();
+    _bindManualDialog();
+
+    App.on('parts:change', _onPartsChange);
+    App.on('step:change',  n => { if (n === 1) _onPartsChange(App.state.parts); });
+  }
+
+  // ── Tabs ───────────────────────────────────────────────────
+  function _bindTabs() {
+    document.querySelectorAll('.s1-tab').forEach(tab => {
+      tab.addEventListener('click', () => _switchTab(tab.dataset.s1tab));
+    });
+  }
+
+  function _switchTab(name) {
+    document.querySelectorAll('.s1-tab').forEach(t =>
+      t.classList.toggle('active', t.dataset.s1tab === name));
+    document.querySelectorAll('.s1-panel').forEach(p =>
+      p.hidden = p.id !== `s1-panel-${name}`);
+  }
+
+  function switchToImport() { _switchTab('import'); }
+
+  // ── Drop zone (global) ─────────────────────────────────────
+  function _bindDropZone() {
+    document.body.addEventListener('dragenter', e => {
+      if (App.state.currentStep !== 1 || !e.dataTransfer?.types?.includes('Files')) return;
+      e.preventDefault();
+      document.getElementById('s1-drop-overlay')?.classList.add('active');
+    });
+    document.body.addEventListener('dragover', e => {
+      if (App.state.currentStep !== 1) return;
+      e.preventDefault();
+    });
+    document.body.addEventListener('dragleave', e => {
+      if (e.relatedTarget === null)
+        document.getElementById('s1-drop-overlay')?.classList.remove('active');
+    });
+    document.body.addEventListener('drop', e => {
+      if (App.state.currentStep !== 1) return;
+      e.preventDefault();
+      document.getElementById('s1-drop-overlay')?.classList.remove('active');
+      if (e.dataTransfer?.files?.length) handleFiles(e.dataTransfer.files);
+    });
+
+    // small drop zone drag-over
+    const dz = document.getElementById('s1-empty-drop');
+    if (dz) {
+      dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('drag-over'); });
+      dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+      dz.addEventListener('drop',      e => { e.preventDefault(); dz.classList.remove('drag-over'); if (e.dataTransfer?.files?.length) handleFiles(e.dataTransfer.files); });
+    }
+  }
+
+  // ── File handling ──────────────────────────────────────────
+  async function handleFiles(fileList) {
+    const files = Array.from(fileList).filter(f => /\.(dxf|svg)$/i.test(f.name));
+    if (!files.length) { App.showToast('Поддържани: .dxf .svg', 'warn'); return; }
+    _showProgress(true);
+    for (let i = 0; i < files.length; i++) {
+      _setProgressStatus(`${files[i].name} (${i+1}/${files.length})`);
+      _setProgressPct((i / files.length) * 100);
+      await _processFile(files[i]);
+    }
+    _setProgressPct(100);
+    setTimeout(() => _showProgress(false), 600);
+    // Auto-switch to Set tab after import
+    _switchTab('set');
+  }
+
+  async function _processFile(file) {
+    try {
+      const text = await _readText(file);
+      if (/\.dxf$/i.test(file.name)) await _loadDXF(file.name, text);
+      else await _loadSVG(file.name, text);
+    } catch (err) {
+      App.showToast(`${file.name}: ${err.message}`, 'error');
+      console.error('[Step1]', file.name, err);
+    }
+  }
+
+  async function _loadDXF(filename, text) {
+    const result = DXFParser.parse(text);
+    result.warnings.forEach(w => console.warn('[DXF]', filename, w));
+    const items = result.parts?.length ? result.parts : result.contours;
+    if (!items.length) {
+      App.showToast(`${filename}: Няма контури`, 'error'); return;
+    }
+    const base = filename.replace(/\.(dxf)$/i, '');
+    items.forEach((item, i) => {
+      const poly  = item.outerPoly || item.pts;
+      const bbox  = item.bbox || DXFParser.getBBox(poly);
+      const holes = item.holes || [];
+      App.addPart({
+        name:     items.length === 1 ? base : `${base}#${item.layer||i+1}`,
+        filename, poly, bbox, holes, qty: 1, source: 'dxf',
+      });
+    });
+    const n = items.length;
+    App.showToast(n === 1 ? `${filename} зареден` : `${filename}: ${n} детайла`, 'ok');
+  }
+
+  async function _loadSVG(filename, text) {
+    const contours = _parseSVGContours(text);
+    if (!contours.length) { App.showToast(`${filename}: Няма форми`, 'error'); return; }
+    const base = filename.replace(/\.svg$/i, '');
+    contours.forEach((c, i) =>
+      App.addPart({ name: contours.length===1?base:`${base}-${i+1}`, filename, poly:c.pts, bbox:c.bbox, qty:1, source:'svg' }));
+    App.showToast(`${filename}: ${contours.length} форма(и)`, 'ok');
+  }
+
+  // minimal SVG parser
+  function _parseSVGContours(text) {
+    const doc  = new DOMParser().parseFromString(text, 'image/svg+xml');
+    const results = [];
+    doc.querySelectorAll('path,rect,circle,polygon,polyline,ellipse').forEach(el => {
+      const pts = _svgElPts(el);
+      if (pts.length >= 3) {
+        const norm = DXFParser.normalizeToOrigin(pts);
+        const bbox = DXFParser.getBBox(norm);
+        if (bbox.w > 0.5 && bbox.h > 0.5) results.push({ pts: norm, bbox });
+      }
+    });
+    return results;
+  }
+  function _svgElPts(el) {
+    const f = v => parseFloat(v||0), tag = el.tagName.toLowerCase();
+    if (tag==='rect') { const x=f(el.getAttribute('x')),y=f(el.getAttribute('y')),w=f(el.getAttribute('width')),h=f(el.getAttribute('height')); return [{x,y},{x:x+w,y},{x:x+w,y:y+h},{x,y:y+h}]; }
+    if (tag==='circle') { const cx=f(el.getAttribute('cx')),cy=f(el.getAttribute('cy')),r=f(el.getAttribute('r')); return Array.from({length:36},(_,i)=>({x:cx+r*Math.cos(i*Math.PI/18),y:cy+r*Math.sin(i*Math.PI/18)})); }
+    if (tag==='polygon'||tag==='polyline') { const n=(el.getAttribute('points')||'').trim().split(/[\s,]+/).map(Number); const p=[]; for(let i=0;i+1<n.length;i+=2) p.push({x:n[i],y:n[i+1]}); return p; }
+    if (tag==='path') return _parseSvgPath(el.getAttribute('d')||'');
+    return [];
+  }
+  function _parseSvgPath(d) {
+    const pts=[]; let cx=0,cy=0;
+    const cmds=d.match(/[MmLlHhVvCcZz][^MmLlHhVvCcZz]*/g)||[];
+    for(const cmd of cmds){const t=cmd[0],rel=t===t.toLowerCase()&&t!=='z'&&t!=='Z',nums=cmd.slice(1).trim().split(/[\s,]+/).map(Number).filter(n=>!isNaN(n));
+      if('Mm'.includes(t)){for(let i=0;i+1<nums.length;i+=2){cx=rel?cx+nums[i]:nums[i];cy=rel?cy+nums[i+1]:nums[i+1];pts.push({x:cx,y:cy});}}
+      else if('Ll'.includes(t)){for(let i=0;i+1<nums.length;i+=2){cx=rel?cx+nums[i]:nums[i];cy=rel?cy+nums[i+1]:nums[i+1];pts.push({x:cx,y:cy});}}
+      else if('Hh'.includes(t)){nums.forEach(n=>{cx=rel?cx+n:n;pts.push({x:cx,y:cy});});}
+      else if('Vv'.includes(t)){nums.forEach(n=>{cy=rel?cy+n:n;pts.push({x:cx,y:cy});});}
+    }
+    return pts;
+  }
+
+  // ── Parts change handler ───────────────────────────────────
+  function _onPartsChange(parts) {
+    _renderImportCards(parts);
+    _renderSetList(parts);
+    _updateCounter(parts);
+    // Show/hide empty drop vs cards
+    const hasP = parts.length > 0;
+    document.getElementById('s1-empty-drop')  ?.toggleAttribute('hidden', hasP);
+    document.getElementById('s1-file-cards')  ?.toggleAttribute('hidden', !hasP);
+  }
+
+  // ── IMPORT TAB: file cards ─────────────────────────────────
+  function _renderImportCards(parts) {
+    const el = document.getElementById('s1-file-cards');
+    if (!el) return;
+    if (!parts.length) { el.innerHTML = ''; return; }
+
+    // Group by filename
+    const groups = {};
+    parts.forEach(p => {
+      const key = p.filename || '__manual__';
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(p);
+    });
+
+    el.innerHTML = Object.entries(groups).map(([fname, grpParts]) => {
+      const label = fname === '__manual__' ? 'Ръчни форми' : fname;
+      const thumbs = grpParts.slice(0, 6).map(p => `
+        <div class="s1-card-thumb" data-part-id="${p.id}" title="Увеличи детайла" onclick="ValinorZoomPreview.openPartById(this.dataset.partId);event.stopPropagation();">
+          ${_miniSVG(p.poly, p.color, 52, p.holes)}
+        </div>`).join('');
+      const extra = grpParts.length > 6 ? `<div class="s1-card-thumb" style="background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--text3)">+${grpParts.length-6}</div>` : '';
+      return `
+        <div class="s1-file-card">
+          <div class="s1-card-header">
+            <span style="font-size:11px;color:var(--accent);flex-shrink:0">DXF</span>
+            <span title="${_esc(label)}">${_esc(label)}</span>
+          </div>
+          <div class="s1-card-thumbs">${thumbs}${extra}</div>
+          <div class="s1-card-footer">
+            <span class="s1-card-badge">${grpParts.length} parts</span>
+            <button class="s1-card-menu" title="Опции" onclick="Step1.cardMenu('${_esc(fname)}',this)">···</button>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function cardMenu(fname, btn) {
+    // Simple: remove parts from this file
+    if (confirm(`Изтрий всички детайли от "${fname}"?`)) {
+      const ids = App.state.parts.filter(p => (p.filename||'__manual__') === fname).map(p => p.id);
+      ids.forEach(id => App.removePart(id));
+    }
+  }
+
+  // ── SET TAB: table rows ────────────────────────────────────
+  function _renderSetList(parts) {
+    const el = document.getElementById('s1-set-list');
+    if (!el) return;
+    if (!parts.length) {
+      el.innerHTML = `<div class="empty-state"><div class="empty-icon">◫</div><div>Няма детайли</div><div class="empty-sub">Отиди в Import за да добавиш</div></div>`;
+      return;
+    }
+    el.innerHTML = parts.map(p => _setRowHTML(p)).join('');
+    _bindSetRowEvents(el);
+  }
+
+  function _setRowHTML(p) {
+    const bb    = p.bbox || { w: 0, h: 0 };
+    const thumb = _miniSVG(p.poly, p.color, 48, p.holes);
+    return `
+<div class="s1-set-row" data-id="${p.id}">
+  <div class="s1-set-thumb" title="Увеличи детайла" onclick="ValinorZoomPreview.openPartById(this.closest(\'.s1-set-row\').dataset.id);event.stopPropagation();">${thumb}</div>
+  <div class="s1-set-name">
+    <div class="s1-set-name-text">
+      <span class="s1-name-label">${_esc(p.name)}</span>
+      <span class="s1-edit-icon" data-rename="${p.id}" title="Преименувай">✎</span>
+    </div>
+    <div class="s1-set-meta">${bb.w.toFixed(1)} × ${bb.h.toFixed(1)} мм &nbsp;·&nbsp; ${p.poly.length} пт.</div>
+  </div>
+  <div class="s1-set-qty">
+    <div class="s1-qty-wrap">
+      <button class="s1-qty-btn" data-qbtn data-id="${p.id}" data-delta="-1">−</button>
+      <input  class="s1-qty-input" type="number" value="${p.qty}" min="1" max="9999" data-qty-id="${p.id}">
+      <button class="s1-qty-btn" data-qbtn data-id="${p.id}" data-delta="1">+</button>
+      <button class="s1-qty-pill" data-qbtn data-id="${p.id}" data-delta="10">+10</button>
+      <button class="s1-qty-pill" data-qbtn data-id="${p.id}" data-delta="100">+100</button>
+    </div>
+  </div>
+  <div class="s1-set-dim">${bb.w.toFixed(0)} мм</div>
+  <div class="s1-set-dim">${bb.h.toFixed(0)} мм</div>
+  <div class="s1-set-settings">
+    <button class="s1-set-icon" title="Rotation" onclick="void 0">⟳</button>
+    <button class="s1-set-icon" title="Mirror"   onclick="void 0">⇔</button>
+    <button class="s1-set-icon" title="Priority" onclick="void 0">↑</button>
+  </div>
+  <div class="s1-set-del">
+    <button class="part-del-btn" data-del="${p.id}">×</button>
+  </div>
+</div>`;
+  }
+
+  function _bindSetRowEvents(container) {
+    container.querySelectorAll('[data-qbtn]').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const id   = +btn.dataset.id;
+        const part = App.state.parts.find(p => p.id === id);
+        if (!part) return;
+        App.updatePart(id, { qty: Math.max(1, part.qty + (+btn.dataset.delta)) });
+      });
+    });
+    container.querySelectorAll('[data-qty-id]').forEach(inp => {
+      inp.addEventListener('change', e => {
+        e.stopPropagation();
+        App.updatePart(+inp.dataset.qtyId, { qty: Math.max(1, parseInt(inp.value)||1) });
+      });
+      inp.addEventListener('click', e => e.stopPropagation());
+    });
+    container.querySelectorAll('[data-del]').forEach(btn => {
+      btn.addEventListener('click', e => { e.stopPropagation(); App.removePart(+btn.dataset.del); });
+    });
+    container.querySelectorAll('[data-rename]').forEach(span => {
+      span.addEventListener('click', e => {
+        e.stopPropagation();
+        _startRename(span.closest('.s1-set-row'), +span.dataset.rename);
+      });
+    });
+  }
+
+  function _startRename(row, partId) {
+    const label = row?.querySelector('.s1-name-label');
+    if (!label) return;
+    const current = App.state.parts.find(p => p.id === partId)?.name || '';
+    const inp = document.createElement('input');
+    inp.className = 'rename-input';
+    inp.value     = current;
+    label.replaceWith(inp);
+    inp.focus(); inp.select();
+    const commit = () => {
+      const name = inp.value.trim() || current;
+      App.updatePart(partId, { name });
+    };
+    inp.addEventListener('blur',    commit);
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Enter')  { e.preventDefault(); inp.blur(); }
+      if (e.key === 'Escape') { inp.value = current; inp.blur(); }
+    });
+  }
+
+  // ── Counter ────────────────────────────────────────────────
+  function _updateCounter(parts) {
+    const total = parts.reduce((s, p) => s + p.qty, 0);
+    const txt   = parts.length ? `${parts.length} форми · ${total} части` : '';
+    const el    = document.getElementById('s1-set-counter');
+    if (el) el.textContent = txt;
+    const bot   = document.getElementById('s1-part-count-bot');
+    if (bot) bot.textContent = parts.length ? txt : 'Добавете детайли';
+  }
+
+  // ── Upload progress ────────────────────────────────────────
+  function _showProgress(show) {
+    const el = document.getElementById('s1-upload-progress');
+    if (el) el.hidden = !show;
+  }
+  function _setProgressPct(pct) {
+    const b = document.getElementById('s1-upload-bar');
+    if (b) b.style.width = Math.round(pct) + '%';
+  }
+  function _setProgressStatus(msg) {
+    const e = document.getElementById('s1-upload-status');
+    if (e) e.textContent = msg;
+  }
+
+  // ── Thumbnail ──────────────────────────────────────────────
+  function _miniSVG(poly, color, size, holes=[]) {
+    if (!poly?.length) return `<svg width="${size}" height="${size}"></svg>`;
+    const pad = 3, bb = DXFParser.getBBox(poly);
+    const sc  = Math.min((size-pad*2)/(bb.w||1), (size-pad*2)/(bb.h||1));
+    const ox  = (size-bb.w*sc)/2, oy = (size-bb.h*sc)/2;
+    const pts = poly.map(p => `${(ox+p.x*sc).toFixed(1)},${(oy+p.y*sc).toFixed(1)}`).join(' ');
+    const holeSvg = (holes||[]).map(h => {
+      const hp = h.map(p => `${(ox+p.x*sc).toFixed(1)},${(oy+p.y*sc).toFixed(1)}`).join(' ');
+      return `<polygon points="${hp}" fill="#fff" stroke="${color}" stroke-width=".8" stroke-linejoin="round"/>`;
+    }).join('');
+    return `<svg width="${size}" height="${size}"><polygon points="${pts}" fill="${color}22" stroke="${color}" stroke-width="1.2" stroke-linejoin="round"/>${holeSvg}</svg>`;
+  }
+
+  // ── Manual dialog ──────────────────────────────────────────
+  function _bindManualDialog() {
+    document.getElementById('s1-manual-btn')?.addEventListener('click', openManualDialog);
+    document.getElementById('s1-manual-dialog')?.addEventListener('click', e => {
+      const t = e.target;
+      if (t.id === 's1-manual-dialog') return closeManualDialog();
+      if (t.closest('[data-close-dialog]') || t.closest('#s1-manual-close')) return closeManualDialog();
+      if (t.closest('#s1-manual-add')) return _addManualPart();
+      const tab = t.closest('.dlg-tab');
+      if (tab) {
+        document.querySelectorAll('.dlg-tab').forEach(x => x.classList.toggle('active', x === tab));
+        document.querySelectorAll('.dlg-tab-panel').forEach(p => p.hidden = p.id !== tab.dataset.panel);
+      }
+    });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeManualDialog(); });
+    document.getElementById('s1-dlg-dxf-input')?.addEventListener('change', async e => {
+      const files = e.target.files; if (!files.length) return;
+      const st = document.getElementById('s1-dlg-dxf-status');
+      if (st) st.textContent = 'Зарежда...';
+      await handleFiles(files);
+      if (st) st.textContent = `${files.length} файл(а) заредени ✓`;
+      e.target.value = '';
+      setTimeout(closeManualDialog, 600);
+    });
+    ['s1-manual-shape','s1-manual-w','s1-manual-h'].forEach(id => {
+      document.getElementById(id)?.addEventListener(id==='s1-manual-shape'?'change':'input', _updateManualPreview);
+    });
+  }
+
+  function openManualDialog() {
+    const dlg = document.getElementById('s1-manual-dialog');
+    if (!dlg) return;
+    dlg.removeAttribute('hidden');
+    document.querySelectorAll('.dlg-tab').forEach((t,i)=>t.classList.toggle('active',i===0));
+    document.querySelectorAll('.dlg-tab-panel').forEach((p,i)=>p.hidden=i!==0);
+    _updateManualPreview();
+    setTimeout(()=>document.getElementById('s1-manual-name')?.select(), 50);
+  }
+
+  function closeManualDialog() {
+    const dlg = document.getElementById('s1-manual-dialog');
+    if (dlg) dlg.hidden = true;
+    const st = document.getElementById('s1-dlg-dxf-status');
+    if (st) st.textContent = '';
+  }
+
+  function _addManualPart() {
+    const name  = document.getElementById('s1-manual-name')?.value.trim() || 'Детайл';
+    const w     = parseFloat(document.getElementById('s1-manual-w')?.value) || 200;
+    const h     = parseFloat(document.getElementById('s1-manual-h')?.value) || 150;
+    const shape = document.getElementById('s1-manual-shape')?.value || 'rect';
+    const qty   = parseInt(document.getElementById('s1-manual-qty')?.value) || 1;
+    const poly  = _makeShape(shape, w, h);
+    const bbox  = DXFParser.getBBox(poly);
+    App.addPart({ name, poly, bbox, qty, source:'manual', filename:null });
+    closeManualDialog();
+    const el = document.getElementById('s1-manual-name');
+    if (el) { const m=name.match(/^(.*?)(\d+)$/); if(m) el.value=m[1]+(parseInt(m[2])+1); }
+  }
+
+  function _makeShape(type, w, h) {
+    switch(type) {
+      case 'lshape':  return [{x:0,y:0},{x:w,y:0},{x:w,y:h*.45},{x:w*.45,y:h*.45},{x:w*.45,y:h},{x:0,y:h}];
+      case 'tshape':  { const tw=w*.35,tx=(w-w*.35)/2; return [{x:tx,y:0},{x:tx+tw,y:0},{x:tx+tw,y:h*.4},{x:w,y:h*.4},{x:w,y:h},{x:0,y:h},{x:0,y:h*.4},{x:tx,y:h*.4}]; }
+      case 'triangle': return [{x:0,y:h},{x:w/2,y:0},{x:w,y:h}];
+      case 'hexagon':  { const cx=w/2,cy=h/2,r=Math.min(w,h)/2; return Array.from({length:6},(_,i)=>({x:cx+r*Math.cos(i*Math.PI/3-Math.PI/6),y:cy+r*Math.sin(i*Math.PI/3-Math.PI/6)})); }
+      case 'diamond':  return [{x:w/2,y:0},{x:w,y:h/2},{x:w/2,y:h},{x:0,y:h/2}];
+      default:         return [{x:0,y:0},{x:w,y:0},{x:w,y:h},{x:0,y:h}];
+    }
+  }
+
+  function _updateManualPreview() {
+    const canvas = document.getElementById('s1-manual-preview-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d'), W=canvas.width, H=canvas.height;
+    const w = parseFloat(document.getElementById('s1-manual-w')?.value)||200;
+    const h = parseFloat(document.getElementById('s1-manual-h')?.value)||150;
+    const poly = _makeShape(document.getElementById('s1-manual-shape')?.value||'rect', w, h);
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle='#f7f7f5'; ctx.fillRect(0,0,W,H);
+    const pad=16, sc=Math.min((W-pad*2)/w,(H-pad*2)/h);
+    const ox=(W-w*sc)/2, oy=(H-h*sc)/2;
+    ctx.beginPath();
+    poly.forEach((p,i)=>{const x=ox+p.x*sc,y=oy+p.y*sc; i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
+    ctx.closePath();
+    ctx.fillStyle='rgba(93,189,46,.15)'; ctx.fill();
+    ctx.strokeStyle='#5dbd2e'; ctx.lineWidth=1.5; ctx.stroke();
+  }
+
+  // ── Helpers ────────────────────────────────────────────────
+  function _readText(file) {
+    return new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>res(e.target.result);r.onerror=()=>rej(new Error('Read error'));r.readAsText(file,'utf-8');});
+  }
+  function _esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  return { init, handleFiles, switchToImport, openManualDialog, closeManualDialog, cardMenu };
+})();
+
+</script>
+<script>
+// ═══════════════════════════════════════════════════════════════
+// STEP2-NEST.JS — Canvas visualizer + Sheets + Stats
+// ═══════════════════════════════════════════════════════════════
+
+const Step2 = (() => {
+
+  const PRESETS = [
+    { name: 'MDF 1220×2440',      w: 1220, h: 2440 },
+    { name: 'MDF 2440×1220',      w: 2440, h: 1220 },
+    { name: 'Ламарина 1000×2000', w: 1000, h: 2000 },
+    { name: 'Ламарина 1500×3000', w: 1500, h: 3000 },
+    { name: 'A0 (841×1189)',      w: 841,  h: 1189  },
+    { name: 'Custom…',            w: null, h: null  },
+  ];
+
+  // ── Canvas state ───────────────────────────────────────────
+  let _canvas      = null;
+  let _ctx         = null;
+  let _currentSheet = 0;
+  let _viewScale   = 1;
+  let _viewOffset  = { x: 40, y: 40 };
+  let _panning     = false;
+  let _lastMouse   = { x: 0, y: 0 };
+  let _hoverPart   = null;
+  let _selectedPart = null;
+
+  // ── Init ───────────────────────────────────────────────────
+  function init() {
+    _canvas = document.getElementById('s2-canvas');
+    _ctx    = _canvas?.getContext('2d');
+
+    _bindTabs();
+    _bindAddSheet();
+    _bindSettings();
+    _bindCanvas();
+    _bindSettingsToggle();
+    _switchTab('nest');
+
+    App.on('sheets:change',    renderSheetList);
+    App.on('step:change',      n => {
+      if (n === 2) {
+        renderSheetList();
+        _syncSettings();
+        _renderStats();
+        setTimeout(_resizeCanvas, 30);
+      }
+    });
+    App.on('nesting:start',    () => { _setRunning(true); _switchTab('nest'); });
+    App.on('nesting:stop',     () =>   _setRunning(false));
+    App.on('nesting:done',     () => { _setRunning(false); _renderStats(); _renderCanvas(); _showExport(true); _switchTab('nest'); });
+    App.on('nesting:error',    () =>   _setRunning(false));
+    App.on('nesting:progress', ({ pct, msg }) => _updateProgress(pct, msg));
+    App.on('nesting:log',      msg => _appendLog(msg));
+
+    window.addEventListener('resize', _resizeCanvas);
+  }
+
+  // ── Tabs ───────────────────────────────────────────────────
+  function _bindTabs() {
+    document.querySelectorAll('.s2-tab').forEach(tab => {
+      tab.addEventListener('click', () => _switchTab(tab.dataset.s2tab));
+    });
+  }
+
+  function _switchTab(name) {
+    document.querySelectorAll('.s2-tab').forEach(t =>
+      t.classList.toggle('active', t.dataset.s2tab === name));
+    document.querySelectorAll('.s2-panel').forEach(p =>
+      p.hidden = p.id !== `s2-panel-${name}`);
+
+    // Nesting settings should be visible only in the Nest tab.
+    const step2 = document.getElementById('step-2');
+    if (step2) step2.setAttribute('data-active-s2tab', name);
+    const nestSettingsPanel = document.getElementById('s2-right-settings');
+    if (nestSettingsPanel) nestSettingsPanel.hidden = name !== 'nest';
+
+    if (name === 'nest') setTimeout(_resizeCanvas, 20);
+  }
+
+  // ── Canvas ─────────────────────────────────────────────────
+  function _bindCanvas() {
+    if (!_canvas) return;
+    _canvas.addEventListener('wheel',      _onWheel,     { passive: false });
+    _canvas.addEventListener('mousedown',  _onMouseDown);
+    _canvas.addEventListener('mousemove',  _onMouseMove);
+    _canvas.addEventListener('mouseup',    _onMouseUp);
+    _canvas.addEventListener('mouseleave', () => {
+      _panning = false; _hoverPart = null; _renderCanvas();
+    });
+  }
+
+  function _resizeCanvas() {
+    if (!_canvas) return;
+    const wrap = document.getElementById('s2-canvas-wrap');
+    if (!wrap) return;
+    _canvas.width  = wrap.offsetWidth;
+    _canvas.height = wrap.offsetHeight;
+    _renderCanvas();
+  }
+
+  function _renderCanvas() {
+    if (!_canvas || !_ctx) return;
+    const W = _canvas.width, H = _canvas.height;
+    const ctx = _ctx;
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = '#141412';
+    ctx.fillRect(0, 0, W, H);
+
+    const r = App.state.nestResult;
+
+    // Show/hide empty overlay
+    const empty = document.getElementById('s2-canvas-empty');
+    if (empty) empty.hidden = !!r;
+
+    if (!r?.sheets?.length) return;
+
+    const sr = r.sheets[_currentSheet];
+    if (!sr) return;
+    const { sheet, placements } = sr;
+    const sw = sheet.width, sh = sheet.height;
+    const sc = _viewScale;
+    const ox = _viewOffset.x, oy = _viewOffset.y;
+
+    // Grid
+    ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+    ctx.lineWidth   = 0.5;
+    const gridMM    = sh >= 2000 ? 200 : 100;
+    for (let x = 0; x <= sw; x += gridMM) {
+      ctx.beginPath(); ctx.moveTo(ox+x*sc, oy); ctx.lineTo(ox+x*sc, oy+sh*sc); ctx.stroke();
+    }
+    for (let y = 0; y <= sh; y += gridMM) {
+      ctx.beginPath(); ctx.moveTo(ox, oy+y*sc); ctx.lineTo(ox+sw*sc, oy+y*sc); ctx.stroke();
+    }
+
+    // Sheet background + border
+    ctx.fillStyle   = 'rgba(255,255,255,0.025)';
+    ctx.fillRect(ox, oy, sw*sc, sh*sc);
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+    ctx.lineWidth   = 1;
+    ctx.strokeRect(ox, oy, sw*sc, sh*sc);
+
+    // Parts
+    for (const p of placements) {
+      const isHover    = _hoverPart   === p;
+      const isSelected = _selectedPart === p;
+      _drawPart(ctx, p, sc, ox, oy, isHover, isSelected);
+    }
+
+    // Dimension labels
+    ctx.fillStyle    = 'rgba(255,255,255,0.2)';
+    ctx.font         = '10px monospace';
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(`${sw} мм`, ox + sw*sc/2, oy - 6);
+    ctx.save();
+    ctx.translate(ox - 6, oy + sh*sc/2);
+    ctx.rotate(-Math.PI/2);
+    ctx.fillText(`${sh} мм`, 0, 0);
+    ctx.restore();
+  }
+
+  function _drawPart(ctx, p, sc, ox, oy, isHover, isSelected) {
+    const poly = p.poly;
+    if (!poly?.length) return;
+    ctx.beginPath();
+    ctx.moveTo(ox + poly[0].x*sc, oy + poly[0].y*sc);
+    for (let i = 1; i < poly.length; i++) ctx.lineTo(ox + poly[i].x*sc, oy + poly[i].y*sc);
+    ctx.closePath();
+    ctx.fillStyle   = isSelected ? p.color+'55' : isHover ? p.color+'44' : p.color+'28';
+    ctx.fill();
+    ctx.strokeStyle = isSelected ? p.color : isHover ? p.color+'ee' : p.color+'99';
+    ctx.lineWidth   = isSelected ? 1.5 : 1;
+    ctx.stroke();
+
+    const bb   = _bbox(poly);
+    const boxW = bb.w * sc;
+    if (boxW > 28) {
+      const cx = ox + (bb.minX+bb.maxX)/2*sc;
+      const cy = oy + (bb.minY+bb.maxY)/2*sc;
+      const fs = Math.max(8, Math.min(11, boxW/9));
+      ctx.fillStyle    = 'rgba(255,255,255,0.55)';
+      ctx.font         = `${fs}px monospace`;
+      ctx.textAlign    = 'center';
+      ctx.textBaseline = 'middle';
+      const label = p.name?.length > 12 ? p.name.slice(0,10)+'…' : (p.name || '');
+      ctx.fillText(label, cx, cy);
+      if (p.angle && boxW > 80) {
+        ctx.fillStyle = 'rgba(93,189,46,0.7)';
+        ctx.font      = `${fs*.8}px monospace`;
+        ctx.fillText(`${p.angle}°`, cx, cy + fs + 2);
+      }
+    }
+  }
+
+  // ── Sheet tabs (inside Nest panel) ─────────────────────────
+  function _renderSheetTabs() {
+    const el = document.getElementById('s2-sheet-tabs');
+    if (!el || !App.state.nestResult) return;
+    el.innerHTML = App.state.nestResult.sheets.map((s, i) => `
+      <button class="s2-icon-btn" style="width:auto;padding:0 10px;font-size:11px;${i===_currentSheet?'background:#3a3a38;color:#fff;border-color:#5dbd2e':''}"
+              onclick="Step2.selectSheet(${i})">
+        ${i+1} <span style="opacity:.6;margin-left:3px">${s.placements.length}бр</span>
+      </button>`).join('');
+  }
+
+  function selectSheet(i) {
+    _currentSheet = i;
+    _selectedPart = null;
+    _renderSheetTabs();
+    _fitView();
+    _renderCanvas();
+    _renderPartDetail(null);
+  }
+
+  // ── Mouse ──────────────────────────────────────────────────
+  function _onWheel(e) {
+    e.preventDefault();
+    const f    = e.deltaY < 0 ? 1.12 : 0.88;
+    const rect = _canvas.getBoundingClientRect();
+    const mx   = e.clientX - rect.left;
+    const my   = e.clientY - rect.top;
+    _viewOffset.x = mx - (mx - _viewOffset.x) * f;
+    _viewOffset.y = my - (my - _viewOffset.y) * f;
+    _viewScale   *= f;
+    _renderCanvas();
+  }
+
+  function _onMouseDown(e) {
+    _panning   = true;
+    _lastMouse = { x: e.clientX, y: e.clientY };
+  }
+
+  function _onMouseMove(e) {
+    if (_panning) {
+      _viewOffset.x += e.clientX - _lastMouse.x;
+      _viewOffset.y += e.clientY - _lastMouse.y;
+      _lastMouse     = { x: e.clientX, y: e.clientY };
+      _renderCanvas();
+      // Update coords
+      const coords = document.getElementById('s2-canvas-coords');
+      if (coords) {
+        const mx = (e.clientX - _canvas.getBoundingClientRect().left - _viewOffset.x) / _viewScale;
+        const my = (e.clientY - _canvas.getBoundingClientRect().top  - _viewOffset.y) / _viewScale;
+        coords.textContent = `${mx.toFixed(0)}, ${my.toFixed(0)} мм`;
+      }
+      return;
+    }
+    // Hover detection
+    const r = App.state.nestResult;
+    if (!r?.sheets?.[_currentSheet]) return;
+    const rect = _canvas.getBoundingClientRect();
+    const mx   = (e.clientX - rect.left  - _viewOffset.x) / _viewScale;
+    const my   = (e.clientY - rect.top   - _viewOffset.y) / _viewScale;
+    const prev = _hoverPart;
+    _hoverPart  = null;
+    for (const p of r.sheets[_currentSheet].placements) {
+      if (_pointInPoly({ x: mx, y: my }, p.poly)) { _hoverPart = p; break; }
+    }
+    if (_hoverPart !== prev) {
+      _renderCanvas();
+      _canvas.style.cursor = _hoverPart ? 'pointer' : 'grab';
+    }
+  }
+
+  function _onMouseUp(e) {
+    const moved = Math.abs(e.clientX - _lastMouse.x) > 3 || Math.abs(e.clientY - _lastMouse.y) > 3;
+    _panning    = false;
+    if (!moved && _hoverPart) {
+      _selectedPart = _selectedPart === _hoverPart ? null : _hoverPart;
+      _renderCanvas();
+      _renderPartDetail(_selectedPart);
+    }
+  }
+
+  function _pointInPoly(pt, poly) {
+    let inside = false;
+    for (let i = 0, j = poly.length-1; i < poly.length; j = i++) {
+      const xi=poly[i].x,yi=poly[i].y,xj=poly[j].x,yj=poly[j].y;
+      if (((yi>pt.y)!==(yj>pt.y))&&(pt.x<(xj-xi)*(pt.y-yi)/(yj-yi)+xi)) inside=!inside;
+    }
+    return inside;
+  }
+
+  function zoomIn()  { _viewScale *= 1.2; _renderCanvas(); }
+  function zoomOut() { _viewScale *= 0.8; _renderCanvas(); }
+  function fitView() { _fitView(); _renderCanvas(); }
+
+  function _fitView() {
+    if (!_canvas) return;
+    const r = App.state.nestResult;
+    if (!r?.sheets?.[_currentSheet]) return;
+    const { sheet } = r.sheets[_currentSheet];
+    const W  = _canvas.width  || 800;
+    const H  = _canvas.height || 600;
+    const pad = 50;
+    _viewScale  = Math.min((W-pad*2)/sheet.width, (H-pad*2)/sheet.height);
+    _viewOffset = { x:(W-sheet.width*_viewScale)/2, y:(H-sheet.height*_viewScale)/2 };
+  }
+
+  // ── Part detail in right sidebar ───────────────────────────
+  function _renderPartDetail(p) {
+    const panel = document.getElementById('s2-right-detail');
+    const inner = document.getElementById('s2-part-detail-panel');
+    if (!panel || !inner) return;
+    panel.hidden = !p;
+    if (!p) return;
+    const bb = _bbox(p.poly);
+    inner.innerHTML = `
+      <div style="font-size:12px;font-weight:600;margin-bottom:8px;color:var(--text)">${p.name||'—'}</div>
+      <div class="prev-row"><span>Размер</span><b>${bb.w.toFixed(1)} × ${bb.h.toFixed(1)} мм</b></div>
+      <div class="prev-row"><span>Позиция</span><b>${bb.minX.toFixed(1)}, ${bb.minY.toFixed(1)}</b></div>
+      <div class="prev-row"><span>Ротация</span><b>${p.angle||0}°</b></div>
+      <div class="prev-row"><span>Площ</span><b>${(bb.w*bb.h/100).toFixed(0)} см²</b></div>`;
+  }
+
+  // ── Sheet List ─────────────────────────────────────────────
+  function renderSheetList() {
+    const el = document.getElementById('s2-sheets-list');
+    if (!el) return;
+    const sheets = App.state.sheets;
+    if (!sheets.length) {
+      el.innerHTML = `<div class="empty-state"><div class="empty-icon">▭</div><div>Няма добавени листа</div><div class="empty-sub">Натисни "+ Add sheet"</div></div>`;
+      return;
+    }
+    el.innerHTML = sheets.map(s => `
+      <div class="sheet-row" data-id="${s.id}">
+        <div class="sheet-icon">▭</div>
+        <div class="sheet-info">
+          <input class="sheet-name-input" value="${s.name}" data-field="name" data-id="${s.id}">
+          <div class="sheet-dims-row">
+            <input class="sheet-dim" type="number" value="${s.width}"  data-field="width"  data-id="${s.id}" min="100"> ×
+            <input class="sheet-dim" type="number" value="${s.height}" data-field="height" data-id="${s.id}" min="100"> мм
+          </div>
+        </div>
+        <div class="sheet-qty-ctrl"><label>Бр.</label>
+          <input class="qty-input" type="number" value="${s.qty}" min="1" data-field="qty" data-id="${s.id}">
+        </div>
+        <button class="part-del-btn" data-del-sheet="${s.id}">✕</button>
+      </div>`).join('');
+    el.querySelectorAll('[data-field]').forEach(inp => {
+      inp.addEventListener('change', () => {
+        const id  = +inp.dataset.id, field = inp.dataset.field;
+        App.updateSheet(id, { [field]: field==='name' ? inp.value : (parseFloat(inp.value)||1) });
+      });
+    });
+    el.querySelectorAll('[data-del-sheet]').forEach(btn => {
+      btn.addEventListener('click', () => App.removeSheet(+btn.dataset.delSheet));
+    });
+  }
+
+  function _bindAddSheet() {
+    const preset = document.getElementById('s2-sheet-preset');
+    if (preset) {
+      preset.innerHTML = PRESETS.map((p,i)=>`<option value="${i}">${p.name}</option>`).join('');
+      preset.style.cssText = 'font-size:12px;border:1px solid var(--border);border-radius:var(--r);padding:5px 8px;background:var(--bg-panel)';
+    }
+    document.getElementById('s2-add-sheet-btn')?.addEventListener('click', () => {
+      const sel = PRESETS[parseInt(preset?.value)||0];
+      App.addSheet({ width: sel.w||1220, height: sel.h||2440 });
+    });
+  }
+
+  // ── Settings ───────────────────────────────────────────────
+  function _bindSettings() {
+    const binds = [
+      ['s2-part-gap',   'partGap',        'float'],
+      ['s2-border-gap', 'sheetBorderGap', 'float'],
+      ['s2-rotation',   'rotation',       'string'],
+      ['s2-rot-step',   'rotStep',        'int'],
+      ['s2-mirror',     'allowMirror',    'bool'],
+    ];
+    for (const [id, key, type] of binds) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      el.addEventListener('change', () => {
+        App.state.nestSettings[key] =
+          type==='float' ? parseFloat(el.value)||0 :
+          type==='int'   ? parseInt(el.value)||0   :
+          type==='bool'  ? el.checked : el.value;
+        App.emit('settings:change', App.state.nestSettings);
+      });
+    }
+    const qs = document.getElementById('s2-quality-slider');
+    const ql = document.getElementById('s2-quality-label');
+    function _syncQualityTimeLabel() {
+      if (!qs) return;
+      const v = parseInt(qs.value) || 0;
+      const sec = Math.round(60 + (Math.max(0, Math.min(100, v)) / 100) * 120);
+      App.state.nestSettings.quality = v;
+      App.state.nestSettings.nestingTime = sec;
+      App.state.nestSettings.timeLimitMs = sec * 1000;
+      const mm = Math.floor(sec / 60);
+      const ss = String(sec % 60).padStart(2, '0');
+      if (ql) ql.textContent = `Време: ${mm}:${ss} мин`;
+    }
+    if (qs) {
+      qs.addEventListener('input', _syncQualityTimeLabel);
+      qs.addEventListener('change', _syncQualityTimeLabel);
+      _syncQualityTimeLabel();
+    }
+    document.getElementById('s2-start-btn')?.addEventListener('click', () => App.startNesting());
+    document.getElementById('s2-stop-btn')?.addEventListener('click',  () => App.stopNesting());
+  }
+
+  function _bindSettingsToggle() {
+    document.getElementById('s2-settings-toggle')?.addEventListener('click', () => {
+      const body    = document.getElementById('s2-settings-body');
+      const chevron = document.getElementById('s2-settings-chevron');
+      if (!body) return;
+      const collapsed = body.hidden;
+      body.hidden     = !collapsed;
+      if (chevron) chevron.style.transform = collapsed ? '' : 'rotate(-90deg)';
+    });
+  }
+
+  function _syncSettings() {
+    const s = App.state.nestSettings;
+    const _v = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+    _v('s2-part-gap',   s.partGap);
+    _v('s2-border-gap', s.sheetBorderGap);
+    _v('s2-rotation',   s.rotation);
+    _v('s2-rot-step',   s.rotStep);
+  }
+
+  // ── Statistics ─────────────────────────────────────────────
+  function _renderStats() {
+    const r = App.state.nestResult;
+    if (!r) {
+      ['s2-st-eff','s2-st-waste','s2-st-sheets','s2-st-placed'].forEach(id => _set(id,'—'));
+      _set('s2-st-unplaced','Стартирай нестинга за статистики');
+      const bd = document.getElementById('s2-st-breakdown'); if (bd) bd.innerHTML='';
+      return;
+    }
+    _set('s2-st-eff',    r.overallEfficiency.toFixed(1)+'%');
+    _set('s2-st-waste',  (100-r.overallEfficiency).toFixed(1)+'%');
+    _set('s2-st-sheets', r.sheets.length);
+    _set('s2-st-placed', `${r.totalPlaced} / ${r.totalPieces}`);
+    const u = document.getElementById('s2-st-unplaced');
+    if (u) {
+      u.textContent = r.unplaced?.length ? `⚠ ${r.unplaced.length} детайла не се поместиха` : '✓ Всички поставени';
+      u.style.color = r.unplaced?.length ? 'var(--orange)' : 'var(--accent)';
+    }
+    const bd = document.getElementById('s2-st-breakdown');
+    if (bd) bd.innerHTML = `
+      <div style="font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:10px">По лист</div>
+      ${r.sheets.map((sh,i)=>`
+        <div class="s2-sheet-row">
+          <div>
+            <div style="font-size:12px;font-weight:500">Лист ${i+1}</div>
+            <div style="font-size:11px;color:var(--text3)">${sh.sheet.width}×${sh.sheet.height}мм · ${sh.placements.length} бр.</div>
+            <div class="s2-eff-bar"><div class="s2-eff-fill" style="width:${sh.efficiency.toFixed(1)}%"></div></div>
+          </div>
+          <div style="font-size:14px;font-weight:600;color:${sh.efficiency>=75?'var(--accent)':'var(--orange)'}">${sh.efficiency.toFixed(1)}%</div>
+        </div>`).join('')}`;
+
+    // Update sheet tabs in canvas toolbar
+    _renderSheetTabs();
+  }
+
+  function _showExport(show) {
+    const el = document.getElementById('s2-right-export');
+    if (el) el.hidden = !show;
+  }
+
+  // ── Export (вграден в Step 2) ─────────────────────────────
+  function exportDXF() {
+    const r = App.state.nestResult;
+    if (!r) return App.showToast('Няма резултат!','warn');
+    DXFExporter.download('nesting_result.dxf', DXFExporter.exportDXF(r), 'application/dxf');
+    App.showToast('DXF експортиран!','ok');
+  }
+  function exportSVG() {
+    const r = App.state.nestResult;
+    if (!r) return App.showToast('Няма резултат!','warn');
+    DXFExporter.download('nesting_result.svg', DXFExporter.exportSVG(r), 'image/svg+xml');
+    App.showToast('SVG експортиран!','ok');
+  }
+  function exportCSV() {
+    const r = App.state.nestResult;
+    if (!r) return App.showToast('Няма резултат!','warn');
+    DXFExporter.download('nesting_report.csv', DXFExporter.exportCSV(r), 'text/csv');
+    App.showToast('CSV репорт!','ok');
+  }
+
+  // ── Running state ──────────────────────────────────────────
+  function _setRunning(running) {
+    const start = document.getElementById('s2-start-btn');
+    const stop  = document.getElementById('s2-stop-btn');
+    const prog  = document.getElementById('s2-progress-wrap');
+    if (start) { start.disabled = running; start.textContent = running ? '⏳ Изчислява...' : '▶ Start optimization'; }
+    if (stop)  stop.hidden  = !running;
+    if (prog)  prog.hidden  = !running;
+    if (!running) _updateProgress(0,'');
+  }
+
+  function _updateProgress(pct, msg) {
+    const bar = document.getElementById('s2-progress-bar');
+    const lbl = document.getElementById('s2-progress-label');
+    if (bar) bar.style.width = pct+'%';
+    if (lbl && msg) lbl.textContent = msg;
+  }
+
+  function _appendLog(msg) {
+    const el = document.getElementById('s2-log');
+    if (!el) return;
+    const line = document.createElement('div');
+    line.textContent = '› ' + msg;
+    el.appendChild(line);
+    el.scrollTop = el.scrollHeight;
+    if (el.children.length > 40) el.removeChild(el.firstChild);
+  }
+
+  // ── Helpers ────────────────────────────────────────────────
+  function _set(id, val) { const el=document.getElementById(id); if(el) el.textContent=val; }
+
+  function _bbox(pts) {
+    let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+    for(const p of pts){if(p.x<minX)minX=p.x;if(p.y<minY)minY=p.y;if(p.x>maxX)maxX=p.x;if(p.y>maxY)maxY=p.y;}
+    return{minX,minY,maxX,maxY,w:maxX-minX,h:maxY-minY};
+  }
+
+  return { init, renderSheetList, selectSheet, zoomIn, zoomOut, fitView, exportDXF, exportSVG, exportCSV };
+})();
+
+</script>
+
+<script>
+// ── Bootstrap ────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+
+  // Init modules
+  App.init();
+  Step1.init();
+  Step2.init();
+
+  // ── Step change ──────────────────────────────────────────
+  App.on('step:change', n => {
+    // Step 1 = full width (no sidebar), Step 2 = canvas + settings sidebar
+    document.getElementById('main-content').className =
+      'main ' + (n === 1 ? 'sidebar-layout' : 's2-layout');
+
+    document.querySelectorAll('.step-btn').forEach((btn, i) => {
+      btn.classList.toggle('active', i + 1 === n);
+      btn.classList.toggle('done',   i + 1 < n);
+    });
+
+    const nextBtn = document.getElementById('nav-next-btn');
+    const backBtn = document.getElementById('nav-back-btn');
+    const labels  = ['Set quantities →', 'Start optimization →'];
+    if (nextBtn) { nextBtn.textContent = labels[n - 1] || '→'; nextBtn.disabled = false; }
+    if (backBtn)   backBtn.style.visibility = n > 1 ? 'visible' : 'hidden';
+
+    if (n === 2) _updatePartsSummary();
+  });
+
+  // ── Parts change ─────────────────────────────────────────
+  App.on('parts:change', parts => {
+    const total    = parts.reduce((s, p) => s + p.qty, 0);
+    const hasParts = parts.length > 0;
+
+    const statusEl = document.getElementById('s1-part-count-bot');
+    if (statusEl) statusEl.textContent = hasParts
+      ? `${parts.length} форми · ${total} части`
+      : 'Добавете детайли';
+
+    document.getElementById('s1-empty-drop') ?.toggleAttribute('hidden', hasParts);
+    document.getElementById('s1-addmore-bar')?.toggleAttribute('hidden', !hasParts);
+
+    if (App.state.currentStep === 2) _updatePartsSummary();
+  });
+
+  App.emit('step:change', 1);
+  App.emit('parts:change', App.state.parts);
+});
+
+function _handleNextBtn() {
+  const n = App.state.currentStep;
+  if (n === 1) App.goToStep(2);
+  else if (n === 2) App.startNesting();
+  else if (n === 3) Step3.exportDXF();
+}
+
+function _updatePartsSummary() {
+  const el    = document.getElementById('s2-parts-summary');
+  if (!el) return;
+  const parts = App.state.parts;
+  if (!parts.length) { el.innerHTML = '<span style="color:var(--text3)">—</span>'; return; }
+  const total = parts.reduce((s, p) => s + p.qty, 0);
+  el.innerHTML =
+    parts.slice(0, 8).map(p =>
+      `<div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid var(--border)">
+         <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name}</span>
+         <span style="color:var(--text);font-weight:500;margin-left:8px">×${p.qty}</span>
+       </div>`
+    ).join('') +
+    (parts.length > 8 ? `<div style="color:var(--text3);margin-top:4px;font-size:11px">+ ${parts.length - 8} още...</div>` : '') +
+    `<div style="margin-top:8px;padding-top:6px;border-top:1px solid var(--border);font-weight:600">Общо: ${total} части</div>`;
+}
+
+Step2.showSpreadsheetImport = () => App.showToast('Spreadsheet import — скоро', 'info');
+</script>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  function updateNestTabState() {
+    const activeTab =
+      document.querySelector('.tab.active, .tab-button.active, .tabs button.active');
+    
+    const tabText = activeTab ? activeTab.textContent.trim().toLowerCase() : '';
+    
+    if (tabText.includes('nest')) {
+      document.body.classList.add('tab-nest-active');
+    } else {
+      document.body.classList.remove('tab-nest-active');
+    }
+  }
+
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.tab, .tab-button, .tabs button');
+    if (btn) {
+      setTimeout(updateNestTabState, 50);
+    }
+  });
+
+  updateNestTabState();
+});
+</script>
+
+
+<script id="ui-nest-visibility-fix-v3-js">
+document.addEventListener('DOMContentLoaded', function(){
+  function hardStepVisibilityFix(){
+    document.querySelectorAll('.step-view').forEach(function(step){
+      if(step.hidden){
+        step.style.setProperty('display','none','important');
+      } else {
+        if(step.id === 'step-1' || step.id === 'step-2') step.style.display = 'contents';
+      }
+    });
+  }
+  document.addEventListener('click', function(){ setTimeout(hardStepVisibilityFix, 0); setTimeout(hardStepVisibilityFix, 80); }, true);
+  const obs = new MutationObserver(hardStepVisibilityFix);
+  document.querySelectorAll('.step-view').forEach(function(step){ obs.observe(step, {attributes:true, attributeFilter:['hidden','style']}); });
+  hardStepVisibilityFix();
+});
+</script>
+
+<style id="valinor-result-visible-v6">
+  /* Before nesting result: keep the clean white Sheet + Nesting settings screen. */
+  #step-2:not([hidden]):not([data-nest-result="1"]) #s2-panel-nest,
+  #step-2:not([hidden]):not([data-nest-result="1"]) #s2-panel-stats,
+  #step-2:not([hidden]):not([data-nest-result="1"]) .s2-canvas-toolbar,
+  #step-2:not([hidden]):not([data-nest-result="1"]) .s2-canvas-wrap,
+  #step-2:not([hidden]):not([data-nest-result="1"]) .s2-canvas-status {
+    display: none !important;
+  }
+
+  #step-2:not([hidden]):not([data-nest-result="1"]) #s2-panel-sheets {
+    display: flex !important;
+  }
+
+  /* After nesting result: show the visualization/canvas again. */
+  #step-2:not([hidden])[data-nest-result="1"] #s2-panel-sheets {
+    display: none !important;
+  }
+
+  #step-2:not([hidden])[data-nest-result="1"] #s2-panel-nest {
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 0 !important;
+    background: #111 !important;
+  }
+
+  #step-2:not([hidden])[data-nest-result="1"] .s2-canvas-toolbar {
+    display: flex !important;
+  }
+
+  #step-2:not([hidden])[data-nest-result="1"] .s2-canvas-wrap {
+    display: block !important;
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    background: #0d0d0c !important;
+  }
+
+  #step-2:not([hidden])[data-nest-result="1"] .s2-canvas-status {
+    display: flex !important;
+  }
+
+  #step-2:not([hidden])[data-nest-result="1"] #s2-canvas {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+  }
+</style>
+
+<script id="valinor-result-visible-v6-js">
+document.addEventListener('DOMContentLoaded', function () {
+  const step2 = document.getElementById('step-2');
+
+  function setResultMode(on) {
+    if (!step2) return;
+    if (on) {
+      step2.setAttribute('data-nest-result', '1');
+      step2.setAttribute('data-active-s2tab', 'nest');
+      const nestPanel = document.getElementById('s2-panel-nest');
+      const sheetsPanel = document.getElementById('s2-panel-sheets');
+      if (nestPanel) nestPanel.hidden = false;
+      if (sheetsPanel) sheetsPanel.hidden = true;
+      setTimeout(function () {
+        if (window.Step2 && typeof window.Step2.fitView === 'function') {
+          try { window.Step2.fitView(); } catch(e) {}
+        }
+        window.dispatchEvent(new Event('resize'));
+      }, 80);
+    } else {
+      step2.removeAttribute('data-nest-result');
+    }
+  }
+
+  if (window.App && typeof window.App.on === 'function') {
+    window.App.on('nesting:start', function(){ setResultMode(false); });
+    window.App.on('nesting:done', function(){ setResultMode(true); });
+    window.App.on('step:change', function(n){
+      if (n === 2 && window.App.state && window.App.state.nestResult) {
+        setResultMode(true);
+      }
+    });
+  }
+});
+</script>
+
+
+<style id="valinor-result-force-visible-v2">
+  /* Nest setup screen: only Sheets + Nesting settings before optimization result */
+  #step-2:not([hidden]):not([data-nest-result="1"]) #s2-panel-nest,
+  #step-2:not([hidden]):not([data-nest-result="1"]) #s2-panel-stats,
+  #step-2:not([hidden]):not([data-nest-result="1"]) .s2-canvas-toolbar,
+  #step-2:not([hidden]):not([data-nest-result="1"]) .s2-canvas-wrap,
+  #step-2:not([hidden]):not([data-nest-result="1"]) .s2-canvas-status {
+    display: none !important;
+  }
+
+  #step-2:not([hidden]):not([data-nest-result="1"]) #s2-panel-sheets {
+    display: flex !important;
+  }
+
+  /* Result screen: show the Nest canvas after optimization */
+  #step-2:not([hidden])[data-nest-result="1"] #s2-panel-sheets {
+    display: none !important;
+  }
+
+  #step-2:not([hidden])[data-nest-result="1"] #s2-panel-nest {
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 0 !important;
+    height: 100% !important;
+    background: #111 !important;
+  }
+
+  #step-2:not([hidden])[data-nest-result="1"] .s2-canvas-toolbar {
+    display: flex !important;
+  }
+
+  #step-2:not([hidden])[data-nest-result="1"] .s2-canvas-wrap {
+    display: block !important;
+    flex: 1 1 auto !important;
+    min-height: 220px !important;
+    background: #0d0d0c !important;
+  }
+
+  #step-2:not([hidden])[data-nest-result="1"] .s2-canvas-status {
+    display: flex !important;
+  }
+
+  #step-2:not([hidden])[data-nest-result="1"] #s2-canvas {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+
+  #step-2:not([hidden])[data-nest-result="1"] #s2-canvas-empty {
+    display: none !important;
+  }
+
+  #step-2:not([hidden])[data-nest-result="1"] #s2-right-export,
+  #step-2:not([hidden])[data-nest-result="1"] #s2-right-detail {
+    display: block;
+  }
+</style>
+
+<script id="valinor-result-force-visible-v2-js">
+(function () {
+  function getApp() {
+    return window.App || window.__valinorAppRef || (typeof App !== 'undefined' ? App : null);
+  }
+
+  function forceResultMode() {
+    const app = getApp();
+    const step2 = document.getElementById('step-2');
+    if (!step2 || !app || !app.state || !app.state.nestResult) return;
+
+    step2.setAttribute('data-nest-result', '1');
+    step2.setAttribute('data-active-s2tab', 'nest');
+
+    const nestPanel = document.getElementById('s2-panel-nest');
+    const sheetsPanel = document.getElementById('s2-panel-sheets');
+    const statsPanel = document.getElementById('s2-panel-stats');
+    const empty = document.getElementById('s2-canvas-empty');
+
+    if (nestPanel) nestPanel.hidden = false;
+    if (sheetsPanel) sheetsPanel.hidden = true;
+    if (statsPanel) statsPanel.hidden = true;
+    if (empty) empty.hidden = true;
+
+    document.querySelectorAll('.s2-tab').forEach(function(t){
+      t.classList.toggle('active', t.dataset.s2tab === 'nest');
+    });
+
+    setTimeout(function () {
+      try { if (window.Step2 && typeof window.Step2.render === 'function') window.Step2.render(); } catch(e) {}
+      try { if (window.Step2 && typeof window.Step2.fitView === 'function') window.Step2.fitView(); } catch(e) {}
+      try { window.dispatchEvent(new Event('resize')); } catch(e) {}
+    }, 80);
+
+    setTimeout(function () {
+      try { if (window.Step2 && typeof window.Step2.fitView === 'function') window.Step2.fitView(); } catch(e) {}
+      try { window.dispatchEvent(new Event('resize')); } catch(e) {}
+    }, 300);
+  }
+
+  function setup() {
+    const app = getApp();
+    if (app && typeof app.on === 'function') {
+      app.on('nesting:start', function(){
+        const step2 = document.getElementById('step-2');
+        if (step2) step2.removeAttribute('data-nest-result');
+      });
+      app.on('nesting:done', forceResultMode);
+      app.on('step:change', function(n){
+        if (n === 2) setTimeout(forceResultMode, 50);
+      });
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    setup();
+    setInterval(forceResultMode, 500);
+  });
+})();
+</script>
+
+
+<button class="supernest-back-settings" id="supernest-back-settings-btn">
+  ← Sheet settings
+</button>
+
+<script id="supernest-back-settings-script">
+(function(){
+  function backToSheets() {
+    const step2 = document.getElementById('step-2');
+    if (!step2) return;
+
+    step2.removeAttribute('data-nest-result');
+    step2.setAttribute('data-active-s2tab', 'sheets');
+
+    const sheetsPanel = document.getElementById('s2-panel-sheets');
+    const nestPanel = document.getElementById('s2-panel-nest');
+    const statsPanel = document.getElementById('s2-panel-stats');
+
+    if (sheetsPanel) sheetsPanel.hidden = false;
+    if (nestPanel) nestPanel.hidden = true;
+    if (statsPanel) statsPanel.hidden = true;
+
+    document.querySelectorAll('.s2-tab').forEach(function(t){
+      t.classList.toggle('active', t.dataset.s2tab === 'sheets');
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    const btn = document.getElementById('supernest-back-settings-btn');
+    if (btn) btn.addEventListener('click', backToSheets);
+  });
+})();
+</script>
+
+
+<style id="supernest-bottom-sheet-count-style">
+  #supernest-sheet-count-bottom {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #555;
+    white-space: nowrap;
+  }
+
+  #supernest-sheet-count-bottom .sn-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    height: 24px;
+    padding: 0 8px;
+    border-radius: 14px;
+    background: #5dbd2e;
+    color: #fff;
+    font-weight: 700;
+  }
+</style>
+
+<script id="supernest-bottom-sheet-count-script">
+(function(){
+  function getApp() {
+    return window.App || window.__valinorAppRef || (typeof App !== 'undefined' ? App : null);
+  }
+
+  function realUsedSheets(result) {
+    if (!result || !Array.isArray(result.sheets)) return 0;
+    return result.sheets.filter(function(s){
+      return s && Array.isArray(s.placements) && s.placements.length > 0;
+    }).length;
+  }
+
+  function ensureBottomElement() {
+    let el = document.getElementById('supernest-sheet-count-bottom');
+    if (el) return el;
+
+    const bottomStatus = document.getElementById('bottom-status');
+    if (!bottomStatus) return null;
+
+    el = document.createElement('span');
+    el.id = 'supernest-sheet-count-bottom';
+    el.style.marginLeft = '14px';
+    bottomStatus.appendChild(el);
+    return el;
+  }
+
+  function updateBottomSheetCount(result) {
+    const app = getApp();
+    const r = result || (app && app.state && app.state.nestResult);
+    const el = ensureBottomElement();
+    if (!el) return;
+
+    if (!r) {
+      el.innerHTML = '';
+      return;
+    }
+
+    const sheets = realUsedSheets(r);
+    const placed = Number(r.totalPlaced || 0);
+    const total = Number(r.totalPieces || 0);
+
+    el.innerHTML = '<span class="sn-pill">' + sheets + '</span> лист' + (sheets === 1 ? '' : 'а') +
+                   ' · ' + placed + '/' + total + ' части';
+  }
+
+  function bindWhenReady() {
+    const app = getApp();
+    if (app && typeof app.on === 'function') {
+      app.on('nesting:done', function(r){
+        setTimeout(function(){ updateBottomSheetCount(r); }, 60);
+      });
+      app.on('nesting:start', function(){
+        const el = ensureBottomElement();
+        if (el) el.innerHTML = 'изчисляване...';
+      });
+      app.on('step:change', function(){
+        setTimeout(function(){ updateBottomSheetCount(); }, 60);
+      });
+    }
+    updateBottomSheetCount();
+  }
+
+  document.addEventListener('DOMContentLoaded', bindWhenReady);
+  setInterval(updateBottomSheetCount, 800);
+})();
+</script>
+
+</body>
+</html>
