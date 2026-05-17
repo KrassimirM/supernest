@@ -354,6 +354,8 @@ function _validPos(poly, placed, tx, ty, gap, margin, sw, sh) {
 
   if (bb.minX < margin - 1e-7 || bb.minY < margin - 1e-7 ||
       bb.maxX > sw - margin + 1e-7 || bb.maxY > sh - margin + 1e-7) return false;
+  if (bb.minX < margin || bb.minY < margin ||
+      bb.maxX > sw - margin || bb.maxY > sh - margin) return false;
 
   for (const p of placed) {
     const bb2 = _getBBox(p.poly);
