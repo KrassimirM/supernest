@@ -19,6 +19,10 @@
  */
 const DXFParser = (() => {
 
+  const Geometry = (typeof SuperNestGeometry !== 'undefined')
+    ? SuperNestGeometry
+    : (typeof require !== 'undefined' ? require('./src/core/geometry/geometry.js') : null);
+
   const TOLERANCE  = 0.01;
   const ARC_STEP   = 2;
   const SPLINE_PTS = 64;
@@ -699,34 +703,15 @@ const DXFParser = (() => {
     return r;
   }
 
-  function getBBox(pts) {
-    let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
-    for(const p of pts){if(p.x<minX)minX=p.x;if(p.y<minY)minY=p.y;if(p.x>maxX)maxX=p.x;if(p.y>maxY)maxY=p.y;}
-    return{minX,minY,maxX,maxY,w:maxX-minX,h:maxY-minY,cx:(minX+maxX)/2,cy:(minY+maxY)/2};
-  }
-
-  function normalizeToOrigin(pts) {
-    const bb=getBBox(pts); return pts.map(p=>({x:p.x-bb.minX,y:p.y-bb.minY}));
-  }
+  const getBBox = Geometry.getBBox;
+  const normalizeToOrigin = Geometry.normalizeToOrigin;
 
   function flipY(pts) {
     const maxY=Math.max(...pts.map(p=>p.y)); return pts.map(p=>({x:p.x,y:maxY-p.y}));
   }
 
-  function polyArea(pts) {
-    let a=0;
-    for(let i=0;i<pts.length;i++){const j=(i+1)%pts.length;a+=pts[i].x*pts[j].y-pts[j].x*pts[i].y;}
-    return a/2;
-  }
-
-  function pointInPolygon(px, py, pts) {
-    let ins=false;
-    for(let i=0,j=pts.length-1;i<pts.length;j=i++){
-      const xi=pts[i].x,yi=pts[i].y,xj=pts[j].x,yj=pts[j].y;
-      if(((yi>py)!==(yj>py))&&px<(xj-xi)*(py-yi)/(yj-yi)+xi)ins=!ins;
-    }
-    return ins;
-  }
+  const polyArea = Geometry.polyArea;
+  const pointInPolygon = Geometry.pointInPolygon;
 
   return {
     parse, parseEntities,

@@ -7,6 +7,8 @@
 (function (global) {
   'use strict';
 
+  const Geometry = global.SuperNestGeometry || null;
+
   class SuperNestRenderer {
     constructor(options) {
       this.canvas = options.canvas || null;
@@ -283,6 +285,8 @@
     }
 
     pointInPoly(point, poly) {
+      if (Geometry) return Geometry.pointInPoly(point, poly);
+
       let inside = false;
       for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
         const xi = poly[i].x;
@@ -297,6 +301,8 @@
     }
 
     bbox(points) {
+      if (Geometry) return Geometry.getBBox(points);
+
       let minX = Infinity;
       let minY = Infinity;
       let maxX = -Infinity;
