@@ -3748,6 +3748,7 @@ const Step1 = (() => {
 })();
 
 </script>
+<script src="src/render/supernest-renderer.js"></script>
 <script>
 // ═══════════════════════════════════════════════════════════════
 // STEP2-NEST.JS — Canvas visualizer + Sheets + Stats
@@ -3764,26 +3765,16 @@ const Step2 = (() => {
     { name: 'Custom…',            w: null, h: null  },
   ];
 
-  // ── Canvas state ───────────────────────────────────────────
-  let _canvas      = null;
-  let _ctx         = null;
-  let _currentSheet = 0;
-  let _viewScale   = 1;
-  let _viewOffset  = { x: 40, y: 40 };
-  let _panning     = false;
-  let _lastMouse   = { x: 0, y: 0 };
-  let _hoverPart   = null;
-  let _selectedPart = null;
+  // ── Canvas renderer ─────────────────────────────────────────
+  let _renderer = null;
 
   // ── Init ───────────────────────────────────────────────────
   function init() {
-    _canvas = document.getElementById('s2-canvas');
-    _ctx    = _canvas?.getContext('2d');
+    _initRenderer();
 
     _bindTabs();
     _bindAddSheet();
     _bindSettings();
-    _bindCanvas();
     _bindSettingsToggle();
     _switchTab('nest');
 
@@ -3829,224 +3820,42 @@ const Step2 = (() => {
   }
 
   // ── Canvas ─────────────────────────────────────────────────
-  function _bindCanvas() {
-    if (!_canvas) return;
-    _canvas.addEventListener('wheel',      _onWheel,     { passive: false });
-    _canvas.addEventListener('mousedown',  _onMouseDown);
-    _canvas.addEventListener('mousemove',  _onMouseMove);
-    _canvas.addEventListener('mouseup',    _onMouseUp);
-    _canvas.addEventListener('mouseleave', () => {
-      _panning = false; _hoverPart = null; _renderCanvas();
+  function _initRenderer() {
+    const canvas = document.getElementById('s2-canvas');
+    _renderer = new SuperNestRenderer({
+      canvas,
+      wrap: document.getElementById('s2-canvas-wrap'),
+      getNestResult: () => App.state.nestResult,
+      getEmptyElement: () => document.getElementById('s2-canvas-empty'),
+      getCoordsElement: () => document.getElementById('s2-canvas-coords'),
+      onPartSelect: _renderPartDetail,
     });
+    _renderer.bind();
   }
 
-  function _resizeCanvas() {
-    if (!_canvas) return;
-    const wrap = document.getElementById('s2-canvas-wrap');
-    if (!wrap) return;
-    _canvas.width  = wrap.offsetWidth;
-    _canvas.height = wrap.offsetHeight;
-    _renderCanvas();
-  }
-
-  function _renderCanvas() {
-    if (!_canvas || !_ctx) return;
-    const W = _canvas.width, H = _canvas.height;
-    const ctx = _ctx;
-    ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = '#141412';
-    ctx.fillRect(0, 0, W, H);
-
-    const r = App.state.nestResult;
-
-    // Show/hide empty overlay
-    const empty = document.getElementById('s2-canvas-empty');
-    if (empty) empty.hidden = !!r;
-
-    if (!r?.sheets?.length) return;
-
-    const sr = r.sheets[_currentSheet];
-    if (!sr) return;
-    const { sheet, placements } = sr;
-    const sw = sheet.width, sh = sheet.height;
-    const sc = _viewScale;
-    const ox = _viewOffset.x, oy = _viewOffset.y;
-
-    // Grid
-    ctx.strokeStyle = 'rgba(255,255,255,0.03)';
-    ctx.lineWidth   = 0.5;
-    const gridMM    = sh >= 2000 ? 200 : 100;
-    for (let x = 0; x <= sw; x += gridMM) {
-      ctx.beginPath(); ctx.moveTo(ox+x*sc, oy); ctx.lineTo(ox+x*sc, oy+sh*sc); ctx.stroke();
-    }
-    for (let y = 0; y <= sh; y += gridMM) {
-      ctx.beginPath(); ctx.moveTo(ox, oy+y*sc); ctx.lineTo(ox+sw*sc, oy+y*sc); ctx.stroke();
-    }
-
-    // Sheet background + border
-    ctx.fillStyle   = 'rgba(255,255,255,0.025)';
-    ctx.fillRect(ox, oy, sw*sc, sh*sc);
-    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-    ctx.lineWidth   = 1;
-    ctx.strokeRect(ox, oy, sw*sc, sh*sc);
-
-    // Parts
-    for (const p of placements) {
-      const isHover    = _hoverPart   === p;
-      const isSelected = _selectedPart === p;
-      _drawPart(ctx, p, sc, ox, oy, isHover, isSelected);
-    }
-
-    // Dimension labels
-    ctx.fillStyle    = 'rgba(255,255,255,0.2)';
-    ctx.font         = '10px monospace';
-    ctx.textAlign    = 'center';
-    ctx.textBaseline = 'alphabetic';
-    ctx.fillText(`${sw} мм`, ox + sw*sc/2, oy - 6);
-    ctx.save();
-    ctx.translate(ox - 6, oy + sh*sc/2);
-    ctx.rotate(-Math.PI/2);
-    ctx.fillText(`${sh} мм`, 0, 0);
-    ctx.restore();
-  }
-
-  function _drawPart(ctx, p, sc, ox, oy, isHover, isSelected) {
-    const poly = p.poly;
-    if (!poly?.length) return;
-    ctx.beginPath();
-    ctx.moveTo(ox + poly[0].x*sc, oy + poly[0].y*sc);
-    for (let i = 1; i < poly.length; i++) ctx.lineTo(ox + poly[i].x*sc, oy + poly[i].y*sc);
-    ctx.closePath();
-    ctx.fillStyle   = isSelected ? p.color+'55' : isHover ? p.color+'44' : p.color+'28';
-    ctx.fill();
-    ctx.strokeStyle = isSelected ? p.color : isHover ? p.color+'ee' : p.color+'99';
-    ctx.lineWidth   = isSelected ? 1.5 : 1;
-    ctx.stroke();
-
-    const bb   = _bbox(poly);
-    const boxW = bb.w * sc;
-    if (boxW > 28) {
-      const cx = ox + (bb.minX+bb.maxX)/2*sc;
-      const cy = oy + (bb.minY+bb.maxY)/2*sc;
-      const fs = Math.max(8, Math.min(11, boxW/9));
-      ctx.fillStyle    = 'rgba(255,255,255,0.55)';
-      ctx.font         = `${fs}px monospace`;
-      ctx.textAlign    = 'center';
-      ctx.textBaseline = 'middle';
-      const label = p.name?.length > 12 ? p.name.slice(0,10)+'…' : (p.name || '');
-      ctx.fillText(label, cx, cy);
-      if (p.angle && boxW > 80) {
-        ctx.fillStyle = 'rgba(93,189,46,0.7)';
-        ctx.font      = `${fs*.8}px monospace`;
-        ctx.fillText(`${p.angle}°`, cx, cy + fs + 2);
-      }
-    }
-  }
+  function _resizeCanvas() { _renderer?.resize(); }
+  function _renderCanvas() { _renderer?.render(); }
 
   // ── Sheet tabs (inside Nest panel) ─────────────────────────
   function _renderSheetTabs() {
     const el = document.getElementById('s2-sheet-tabs');
     if (!el || !App.state.nestResult) return;
+    const currentSheet = _renderer?.getCurrentSheet() || 0;
     el.innerHTML = App.state.nestResult.sheets.map((s, i) => `
-      <button class="s2-icon-btn" style="width:auto;padding:0 10px;font-size:11px;${i===_currentSheet?'background:#3a3a38;color:#fff;border-color:#5dbd2e':''}"
+      <button class="s2-icon-btn" style="width:auto;padding:0 10px;font-size:11px;${i===currentSheet?'background:#3a3a38;color:#fff;border-color:#5dbd2e':''}"
               onclick="Step2.selectSheet(${i})">
         ${i+1} <span style="opacity:.6;margin-left:3px">${s.placements.length}бр</span>
       </button>`).join('');
   }
 
   function selectSheet(i) {
-    _currentSheet = i;
-    _selectedPart = null;
+    _renderer?.selectSheet(i);
     _renderSheetTabs();
-    _fitView();
-    _renderCanvas();
-    _renderPartDetail(null);
   }
 
-  // ── Mouse ──────────────────────────────────────────────────
-  function _onWheel(e) {
-    e.preventDefault();
-    const f    = e.deltaY < 0 ? 1.12 : 0.88;
-    const rect = _canvas.getBoundingClientRect();
-    const mx   = e.clientX - rect.left;
-    const my   = e.clientY - rect.top;
-    _viewOffset.x = mx - (mx - _viewOffset.x) * f;
-    _viewOffset.y = my - (my - _viewOffset.y) * f;
-    _viewScale   *= f;
-    _renderCanvas();
-  }
-
-  function _onMouseDown(e) {
-    _panning   = true;
-    _lastMouse = { x: e.clientX, y: e.clientY };
-  }
-
-  function _onMouseMove(e) {
-    if (_panning) {
-      _viewOffset.x += e.clientX - _lastMouse.x;
-      _viewOffset.y += e.clientY - _lastMouse.y;
-      _lastMouse     = { x: e.clientX, y: e.clientY };
-      _renderCanvas();
-      // Update coords
-      const coords = document.getElementById('s2-canvas-coords');
-      if (coords) {
-        const mx = (e.clientX - _canvas.getBoundingClientRect().left - _viewOffset.x) / _viewScale;
-        const my = (e.clientY - _canvas.getBoundingClientRect().top  - _viewOffset.y) / _viewScale;
-        coords.textContent = `${mx.toFixed(0)}, ${my.toFixed(0)} мм`;
-      }
-      return;
-    }
-    // Hover detection
-    const r = App.state.nestResult;
-    if (!r?.sheets?.[_currentSheet]) return;
-    const rect = _canvas.getBoundingClientRect();
-    const mx   = (e.clientX - rect.left  - _viewOffset.x) / _viewScale;
-    const my   = (e.clientY - rect.top   - _viewOffset.y) / _viewScale;
-    const prev = _hoverPart;
-    _hoverPart  = null;
-    for (const p of r.sheets[_currentSheet].placements) {
-      if (_pointInPoly({ x: mx, y: my }, p.poly)) { _hoverPart = p; break; }
-    }
-    if (_hoverPart !== prev) {
-      _renderCanvas();
-      _canvas.style.cursor = _hoverPart ? 'pointer' : 'grab';
-    }
-  }
-
-  function _onMouseUp(e) {
-    const moved = Math.abs(e.clientX - _lastMouse.x) > 3 || Math.abs(e.clientY - _lastMouse.y) > 3;
-    _panning    = false;
-    if (!moved && _hoverPart) {
-      _selectedPart = _selectedPart === _hoverPart ? null : _hoverPart;
-      _renderCanvas();
-      _renderPartDetail(_selectedPart);
-    }
-  }
-
-  function _pointInPoly(pt, poly) {
-    let inside = false;
-    for (let i = 0, j = poly.length-1; i < poly.length; j = i++) {
-      const xi=poly[i].x,yi=poly[i].y,xj=poly[j].x,yj=poly[j].y;
-      if (((yi>pt.y)!==(yj>pt.y))&&(pt.x<(xj-xi)*(pt.y-yi)/(yj-yi)+xi)) inside=!inside;
-    }
-    return inside;
-  }
-
-  function zoomIn()  { _viewScale *= 1.2; _renderCanvas(); }
-  function zoomOut() { _viewScale *= 0.8; _renderCanvas(); }
-  function fitView() { _fitView(); _renderCanvas(); }
-
-  function _fitView() {
-    if (!_canvas) return;
-    const r = App.state.nestResult;
-    if (!r?.sheets?.[_currentSheet]) return;
-    const { sheet } = r.sheets[_currentSheet];
-    const W  = _canvas.width  || 800;
-    const H  = _canvas.height || 600;
-    const pad = 50;
-    _viewScale  = Math.min((W-pad*2)/sheet.width, (H-pad*2)/sheet.height);
-    _viewOffset = { x:(W-sheet.width*_viewScale)/2, y:(H-sheet.height*_viewScale)/2 };
-  }
+  function zoomIn()  { _renderer?.zoomIn(); }
+  function zoomOut() { _renderer?.zoomOut(); }
+  function fitView() { _renderer?.fitView(); _renderCanvas(); }
 
   // ── Part detail in right sidebar ───────────────────────────
   function _renderPartDetail(p) {
