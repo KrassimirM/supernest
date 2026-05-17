@@ -108,6 +108,9 @@ async function _runNesting({ pieces, sheets, settings }) {
   const sorted = [...pieces].sort((a, b) => b.bbox.w * b.bbox.h - a.bbox.w * a.bbox.h);
   const sheetQueue = _expandSheetQueue(sheets);
 
+  _log(`[debug] payload: pieces=${pieces.length}, sheets=${Array.isArray(sheets) ? sheets.length : 0}, sheetCopies=${sheetQueue.length}`);
+  _log(`[debug] settings: gap=${gap}, margin=${margin}, rotation=${settings.rotation}, angles=${rotAngles.length} [${rotAngles.slice(0, 8).join(', ')}${rotAngles.length > 8 ? ', ...' : ''}]`);
+
   const allSheets = [];
   let remaining   = [...sorted];
   let sheetIdx    = 0;
@@ -161,6 +164,7 @@ async function _runNesting({ pieces, sheets, settings }) {
 
     const placed   = [];
     const unplaced = [];
+    const failStats = { bbox: 0, noPosition: 0 };
 
     for (let pi = 0; pi < remaining.length; pi++) {
       if (_stopped) return;
@@ -178,19 +182,27 @@ async function _runNesting({ pieces, sheets, settings }) {
 
       // Намери най-добрата позиция при всички позволени ъгли
       let best = null;
+      const pieceFail = { bbox: 0, noPosition: 0, angles: 0 };
 
       for (const angle of (piece.rotationLock ? [0] : rotAngles)) {
         if (timeUp()) { stoppedByTime = true; break; }
+        pieceFail.angles++;
 
         const rotated = angle === 0
           ? _normalizeToOrigin(piece.poly)
           : _normalizeToOrigin(_rotatePoly(piece.poly, angle));
 
         const bb = _getBBox(rotated);
-        if (bb.w > sw - 2*margin || bb.h > sh - 2*margin) continue;
+        if (bb.w > sw - 2*margin + 1e-7 || bb.h > sh - 2*margin + 1e-7) {
+          pieceFail.bbox++;
+          continue;
+        }
 
         const pos = _findPosition(placed, rotated, sw, sh, gap, margin, deadline);
-        if (!pos) continue;
+        if (!pos) {
+          pieceFail.noPosition++;
+          continue;
+        }
 
         const score = pos.y * sw * 2 + pos.x;
         if (!best || score < best.score)
@@ -210,7 +222,12 @@ async function _runNesting({ pieces, sheets, settings }) {
           sheetId: sheetDef.id,
         });
       } else {
-        unplaced.push(piece);
+        const failReason = pieceFail.angles > 0 && pieceFail.bbox === pieceFail.angles
+          ? 'bbox-too-large'
+          : 'no-position';
+        failStats[failReason === 'bbox-too-large' ? 'bbox' : 'noPosition']++;
+        _log(`[debug] unplaced on sheet ${sheetIdx + 1}: ${piece.name || piece.id} — ${failReason} (bboxFail=${pieceFail.bbox}/${pieceFail.angles}, noPos=${pieceFail.noPosition}/${pieceFail.angles})`);
+        unplaced.push({ ...piece, failReason });
       }
 
       // Yield за да не блокираме Worker event loop
@@ -221,6 +238,11 @@ async function _runNesting({ pieces, sheets, settings }) {
       const efficiency = _sheetEfficiency(placed, sw, sh);
       allSheets.push({ sheetId: sheetDef.id, sheet: sheetDef, placements: placed, efficiency });
       _log(`Лист ${sheetIdx+1}: ${placed.length} бр., ${efficiency.toFixed(1)}% ефективност`);
+      _log(`[debug] sheet ${sheetIdx + 1}: placed=${placed.length}, unplaced=${unplaced.length}, bboxTooLarge=${failStats.bbox}, noPosition=${failStats.noPosition}`);
+    }
+
+    if (!placed.length) {
+      _log(`[debug] sheet ${sheetIdx + 1}: placed=0, unplaced=${unplaced.length}, bboxTooLarge=${failStats.bbox}, noPosition=${failStats.noPosition}`);
     }
 
     remaining = unplaced;
@@ -264,7 +286,7 @@ function _findPosition(placed, poly, sw, sh, gap, margin, deadline) {
   const bb       = _getBBox(poly);
   const maxX     = sw - margin - bb.w;
   const maxY     = sh - margin - bb.h;
-  if (maxX < margin || maxY < margin) return null;
+  if (maxX < margin - 1e-7 || maxY < margin - 1e-7) return null;
 
   const safeGap = Math.max(0, Number(gap) || 0);
   const step    = Math.max(2, Math.min(bb.w, bb.h) / 10);
@@ -330,6 +352,8 @@ function _validPos(poly, placed, tx, ty, gap, margin, sw, sh) {
   const bb    = _getBBox(moved);
   const safeGap = Math.max(0, Number(gap) || 0);
 
+  if (bb.minX < margin - 1e-7 || bb.minY < margin - 1e-7 ||
+      bb.maxX > sw - margin + 1e-7 || bb.maxY > sh - margin + 1e-7) return false;
   if (bb.minX < margin || bb.minY < margin ||
       bb.maxX > sw - margin || bb.maxY > sh - margin) return false;
 
@@ -480,11 +504,12 @@ function _sheetEfficiency(placements, sw, sh) {
 // ══════════════════════════════════════════════════════════════
 function _buildRotAngles(settings) {
   const { rotation, rotStep } = settings;
-  if (!rotation || rotation === 'none') return [0];
-  if (rotation === '90')  return [0, 90, 180, 270];
-  if (rotation === '45')  return [0, 45, 90, 135, 180, 225, 270, 315];
+  const mode = String(rotation || 'none').toLowerCase().trim();
+  if (!mode || mode === 'none') return [0];
+  if (mode === '90' || mode.includes('90'))  return [0, 90, 180, 270];
+  if (mode === '45' || mode.includes('45'))  return [0, 45, 90, 135, 180, 225, 270, 315];
   // 'free' — стъпка rotStep градуса
-  const step = Math.max(1, rotStep || 3);
+  const step = Math.max(1, Number(rotStep) || 3);
   return Array.from({ length: Math.floor(360 / step) }, (_, i) => i * step);
 }
 
