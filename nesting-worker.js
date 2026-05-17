@@ -106,6 +106,7 @@ async function _runNesting({ pieces, sheets, settings }) {
 
   // ── Сортиране: най-голямото парче първо ───────────────────
   const sorted = [...pieces].sort((a, b) => b.bbox.w * b.bbox.h - a.bbox.w * a.bbox.h);
+  const sheetQueue = _expandSheetQueue(sheets);
 
   const allSheets = [];
   let remaining   = [...sorted];
@@ -125,7 +126,9 @@ async function _runNesting({ pieces, sheets, settings }) {
     const elapsedSec = Math.round((Date.now() - startedAt) / 1000);
     const msg = reason === 'time'
       ? `Готово по времеви лимит (${elapsedSec} сек.)`
-      : 'Готово!';
+      : reason === 'sheets'
+        ? 'Готово — няма повече налични листа'
+        : 'Готово!';
 
     _prog(100, msg);
     _log(`✓ ${totalPlaced}/${total} детайла · ${allSheets.length} листа · ${overallEfficiency.toFixed(1)}% ефективност · ${elapsedSec} сек.`);
@@ -139,6 +142,7 @@ async function _runNesting({ pieces, sheets, settings }) {
         unplaced: remaining,
         overallEfficiency,
         stoppedByTime: reason === 'time',
+        stoppedBySheets: reason === 'sheets',
         elapsedSec,
         timeLimitSec: Math.round(timeLimitMs / 1000),
       }
@@ -147,11 +151,11 @@ async function _runNesting({ pieces, sheets, settings }) {
 
   // ── Основен цикъл: лист по лист ──────────────────────────
   outer:
-  while (remaining.length > 0 && sheetIdx < 50) {
+  while (remaining.length > 0 && sheetIdx < sheetQueue.length) {
     if (_stopped) { _log('Спряно от потребителя'); return; }
     if (timeUp()) { stoppedByTime = true; break; }
 
-    const sheetDef = sheets[Math.min(sheetIdx, sheets.length - 1)];
+    const sheetDef = sheetQueue[sheetIdx];
     const sw = sheetDef.width, sh = sheetDef.height;
     _log(`Лист ${sheetIdx + 1} (${sw}×${sh}мм) — ${remaining.length} детайла...`);
 
@@ -226,9 +230,27 @@ async function _runNesting({ pieces, sheets, settings }) {
   }
 
   await _yield();
-  finish(stoppedByTime ? 'time' : 'done');
+  finish(stoppedByTime ? 'time' : (remaining.length ? 'sheets' : 'done'));
 }
 
+
+
+function _expandSheetQueue(sheets) {
+  const queue = [];
+  for (const sheet of Array.isArray(sheets) ? sheets : []) {
+    const qty = Math.max(1, Math.floor(Number(sheet.qty) || 1));
+    for (let copy = 0; copy < qty; copy++) {
+      queue.push({
+        ...sheet,
+        id: `${sheet.id}_${copy + 1}`,
+        sourceSheetId: sheet.id,
+        copyNo: copy + 1,
+        qty: 1,
+      });
+    }
+  }
+  return queue;
+}
 
 // ══════════════════════════════════════════════════════════════
 // ПОЗИЦИОНИРАНЕ — NFP Bottom-Left Fill
@@ -244,21 +266,48 @@ function _findPosition(placed, poly, sw, sh, gap, margin, deadline) {
   const maxY     = sh - margin - bb.h;
   if (maxX < margin || maxY < margin) return null;
 
-  const halfGap  = gap / 2;
-  const step     = Math.max(2, Math.min(bb.w, bb.h) / 10);
+  const safeGap = Math.max(0, Number(gap) || 0);
+  const step    = Math.max(2, Math.min(bb.w, bb.h) / 10);
   let best = null, bestScore = Infinity;
 
+  const tryPos = (x, y) => {
+    x = Math.min(maxX, Math.max(margin, x));
+    y = Math.min(maxY, Math.max(margin, y));
+    const score = y * sw * 2 + x;
+    if (score >= bestScore) return;
+    if (_validPos(poly, placed, x, y, safeGap, margin, sw, sh)) {
+      bestScore = score;
+      best = { x, y };
+    }
+  };
+
+  // ── Точни BL кандидати ────────────────────────────────────
+  // Сканирането със стъпка може да пропусне позиции, които лежат точно до
+  // вече поставен детайл (например 2×50мм в 100мм лист). Затова първо
+  // проверяваме координати, образувани от десните/горните ръбове на
+  // поставените детайли плюс желания gap.
+  const xs = new Set([margin, maxX]);
+  const ys = new Set([margin, maxY]);
+  for (const p of placed) {
+    const pbb = _getBBox(p.poly);
+    xs.add(pbb.maxX + safeGap);
+    ys.add(pbb.maxY + safeGap);
+  }
+  const xList = [...xs].filter(x => x >= margin - 1e-7 && x <= maxX + 1e-7).sort((a, b) => a - b);
+  const yList = [...ys].filter(y => y >= margin - 1e-7 && y <= maxY + 1e-7).sort((a, b) => a - b);
+  for (const y of yList) {
+    if (deadline && Date.now() >= deadline) return best;
+    for (const x of xList) tryPos(x, y);
+  }
+
   // ── Груб скан ────────────────────────────────────────────
-  for (let y = margin; y <= maxY; y += step) {
-    if (deadline && Date.now() >= deadline) return null;
-    for (let x = margin; x <= maxX; x += step) {
-      const score = y * sw * 2 + x;
-      if (score >= bestScore) continue;
-      if (_validPos(poly, placed, x, y, halfGap, margin, sw, sh)) {
-        bestScore = score;
-        best = { x, y };
-        break;  // BL: первото намерено в ред е достатъчно, мини на следващ ред
-      }
+  for (let y = margin; y <= maxY + 1e-7; y += step) {
+    if (deadline && Date.now() >= deadline) return best;
+    const yy = Math.min(y, maxY);
+    for (let x = margin; x <= maxX + 1e-7; x += step) {
+      const xx = Math.min(x, maxX);
+      tryPos(xx, yy);
+      if (best && Math.abs(best.y - yy) < 1e-7) break; // BL: първото в реда стига
     }
   }
   if (!best) return null;
@@ -266,37 +315,32 @@ function _findPosition(placed, poly, sw, sh, gap, margin, deadline) {
   // ── Фино прецизиране ─────────────────────────────────────
   const fine = Math.max(0.5, step / 5);
   const range = step * 1.5;
-  for (let y = Math.max(margin, best.y - range); y <= Math.min(maxY, best.y + range); y += fine) {
+  for (let y = Math.max(margin, best.y - range); y <= Math.min(maxY, best.y + range) + 1e-7; y += fine) {
     if (deadline && Date.now() >= deadline) return best;
-    for (let x = Math.max(margin, best.x - range); x <= Math.min(maxX, best.x + range); x += fine) {
-      const score = y * sw * 2 + x;
-      if (score >= bestScore) continue;
-      if (_validPos(poly, placed, x, y, halfGap, margin, sw, sh)) {
-        bestScore = score;
-        best = { x, y };
-      }
+    for (let x = Math.max(margin, best.x - range); x <= Math.min(maxX, best.x + range) + 1e-7; x += fine) {
+      tryPos(Math.min(x, maxX), Math.min(y, maxY));
     }
   }
 
   return best;
 }
 
-function _validPos(poly, placed, tx, ty, halfGap, margin, sw, sh) {
+function _validPos(poly, placed, tx, ty, gap, margin, sw, sh) {
   const moved = _translatePoly(poly, tx, ty);
   const bb    = _getBBox(moved);
+  const safeGap = Math.max(0, Number(gap) || 0);
 
   if (bb.minX < margin || bb.minY < margin ||
       bb.maxX > sw - margin || bb.maxY > sh - margin) return false;
 
-  const expNew = halfGap > 0 ? _expandPoly(moved, halfGap) : moved;
-
   for (const p of placed) {
     const bb2 = _getBBox(p.poly);
-    // Бърза AABB проверка
-    if (bb.minX > bb2.maxX + halfGap * 2 || bb.maxX < bb2.minX - halfGap * 2 ||
-        bb.minY > bb2.maxY + halfGap * 2 || bb.maxY < bb2.minY - halfGap * 2) continue;
-    const expP = halfGap > 0 ? _expandPoly(p.poly, halfGap) : p.poly;
-    if (_satOverlap(expNew, expP)) return false;
+    // Бърза AABB проверка: ако по една ос има поне gap разстояние, няма конфликт.
+    if (bb.maxX + safeGap <= bb2.minX || bb2.maxX + safeGap <= bb.minX ||
+        bb.maxY + safeGap <= bb2.minY || bb2.maxY + safeGap <= bb.minY) continue;
+
+    if (_polygonsOverlap(moved, p.poly)) return false;
+    if (safeGap > 0 && _polygonDistance(moved, p.poly) < safeGap - 1e-7) return false;
   }
   return true;
 }
@@ -327,30 +371,101 @@ function _rotatePoly(poly, deg) {
   return poly.map(p => ({ x: p.x*cos - p.y*sin, y: p.x*sin + p.y*cos }));
 }
 
-/** Прост radial expand — достатъчен за gap enforcement */
-function _expandPoly(poly, d) {
-  if (d <= 0) return poly;
-  const cx = poly.reduce((s,p)=>s+p.x,0)/poly.length;
-  const cy = poly.reduce((s,p)=>s+p.y,0)/poly.length;
-  return poly.map(p => {
-    const dx=p.x-cx, dy=p.y-cy, len=Math.sqrt(dx*dx+dy*dy)||1;
-    return { x: p.x+dx/len*d, y: p.y+dy/len*d };
+function _polygonsOverlap(A, B) {
+  for (let i = 0; i < A.length; i++) {
+    const a1 = A[i], a2 = A[(i + 1) % A.length];
+    for (let j = 0; j < B.length; j++) {
+      const b1 = B[j], b2 = B[(j + 1) % B.length];
+      if (_segmentsProperIntersect(a1, a2, b1, b2)) return true;
+    }
+  }
+  if (A.some(pt => _pointInPolyStrict(pt, B)) || B.some(pt => _pointInPolyStrict(pt, A))) return true;
+  if (_edgeMidpoints(A).some(pt => _pointInPolyStrict(pt, B)) ||
+      _edgeMidpoints(B).some(pt => _pointInPolyStrict(pt, A))) return true;
+  return _samePolygonFootprint(A, B);
+}
+
+function _edgeMidpoints(poly) {
+  return poly.map((p, i) => {
+    const q = poly[(i + 1) % poly.length];
+    return { x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 };
   });
 }
 
-/** SAT — Separating Axis Theorem */
-function _satOverlap(A, B) {
-  for (const poly of [A, B]) {
-    for (let i=0; i<poly.length; i++) {
-      const j=(i+1)%poly.length;
-      const nx=poly[j].y-poly[i].y, ny=poly[i].x-poly[j].x;
-      let minA=Infinity,maxA=-Infinity,minB=Infinity,maxB=-Infinity;
-      for (const p of A) { const d=p.x*nx+p.y*ny; if(d<minA)minA=d; if(d>maxA)maxA=d; }
-      for (const p of B) { const d=p.x*nx+p.y*ny; if(d<minB)minB=d; if(d>maxB)maxB=d; }
-      if (minA > maxB || minB > maxA) return false;
+function _samePolygonFootprint(A, B) {
+  return A.every(pt => _pointOnPolyBoundary(pt, B)) && B.every(pt => _pointOnPolyBoundary(pt, A));
+}
+
+function _pointOnPolyBoundary(pt, poly) {
+  for (let i = 0; i < poly.length; i++) {
+    if (_pointOnSegment(pt, poly[i], poly[(i + 1) % poly.length])) return true;
+  }
+  return false;
+}
+
+function _polygonDistance(A, B) {
+  if (_polygonsOverlap(A, B)) return 0;
+  let min = Infinity;
+  for (let i = 0; i < A.length; i++) {
+    const a1 = A[i], a2 = A[(i + 1) % A.length];
+    for (let j = 0; j < B.length; j++) {
+      const b1 = B[j], b2 = B[(j + 1) % B.length];
+      min = Math.min(min, _segmentDistance(a1, a2, b1, b2));
+      if (min <= 1e-7) return 0;
     }
   }
-  return true;
+  return min;
+}
+
+function _segmentsProperIntersect(a, b, c, d) {
+  const o1 = _orient(a, b, c);
+  const o2 = _orient(a, b, d);
+  const o3 = _orient(c, d, a);
+  const o4 = _orient(c, d, b);
+  return ((o1 > 1e-7 && o2 < -1e-7) || (o1 < -1e-7 && o2 > 1e-7)) &&
+         ((o3 > 1e-7 && o4 < -1e-7) || (o3 < -1e-7 && o4 > 1e-7));
+}
+
+function _pointInPolyStrict(pt, poly) {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const a = poly[i], b = poly[j];
+    if (_pointOnSegment(pt, a, b)) return false;
+    const crosses = (a.y > pt.y) !== (b.y > pt.y);
+    if (crosses) {
+      const x = (b.x - a.x) * (pt.y - a.y) / (b.y - a.y) + a.x;
+      if (x > pt.x) inside = !inside;
+    }
+  }
+  return inside;
+}
+
+function _segmentDistance(a, b, c, d) {
+  if (_segmentsProperIntersect(a, b, c, d)) return 0;
+  return Math.min(
+    _pointSegmentDistance(a, c, d),
+    _pointSegmentDistance(b, c, d),
+    _pointSegmentDistance(c, a, b),
+    _pointSegmentDistance(d, a, b)
+  );
+}
+
+function _pointSegmentDistance(p, a, b) {
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const len2 = dx * dx + dy * dy;
+  if (len2 <= 1e-12) return Math.hypot(p.x - a.x, p.y - a.y);
+  const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2));
+  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+}
+
+function _pointOnSegment(p, a, b) {
+  if (Math.abs(_orient(a, b, p)) > 1e-7) return false;
+  return p.x >= Math.min(a.x, b.x) - 1e-7 && p.x <= Math.max(a.x, b.x) + 1e-7 &&
+         p.y >= Math.min(a.y, b.y) - 1e-7 && p.y <= Math.max(a.y, b.y) + 1e-7;
+}
+
+function _orient(a, b, c) {
+  return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
 }
 
 function _sheetEfficiency(placements, sw, sh) {
