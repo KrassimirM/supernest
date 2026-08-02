@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - build/win7-x86-crv-optimizer-v1.6.1-20260802
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
