@@ -1,0 +1,91 @@
+name: Build CRV Optimizer Win7 x86
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    if: github.head_ref == 'build/win7-x86-crv-optimizer-v1.6.1-20260802'
+    runs-on: windows-2022
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reassemble and extract optimizer source
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $parts = Get-ChildItem 'win7_build\source.b64.part*' | Sort-Object Name
+          if ($parts.Count -ne 4) { throw "Expected 4 source chunks, found $($parts.Count)" }
+          $b64 = ($parts | ForEach-Object { Get-Content $_.FullName -Raw }) -join ''
+          [IO.File]::WriteAllBytes('win7_build\crv_optimizer_win7_x86_source.zip', [Convert]::FromBase64String($b64))
+          Expand-Archive -Path 'win7_build\crv_optimizer_win7_x86_source.zip' -DestinationPath '.' -Force
+          Rename-Item 'win7_x86_source' 'crv_optimizer_win7_x86'
+
+      - name: Install Python 3.8.10 x86
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $url = 'https://www.python.org/ftp/python/3.8.10/python-3.8.10.exe'
+          $installer = "$env:RUNNER_TEMP\python-3.8.10-x86.exe"
+          Invoke-WebRequest -Uri $url -OutFile $installer
+          Start-Process -FilePath $installer -ArgumentList '/quiet InstallAllUsers=0 TargetDir=C:\Python38-x86 Include_launcher=0 Include_test=0 Shortcuts=0' -Wait
+          & 'C:\Python38-x86\python.exe' -c "import struct,sys; print(sys.version); print(struct.calcsize('P')*8)"
+
+      - name: Install PyInstaller
+        shell: powershell
+        run: |
+          & 'C:\Python38-x86\python.exe' -m pip install --upgrade 'pip<25'
+          & 'C:\Python38-x86\python.exe' -m pip install 'pyinstaller==5.13.2'
+
+      - name: Compile source check
+        shell: powershell
+        run: |
+          Set-Location 'crv_optimizer_win7_x86'
+          & 'C:\Python38-x86\python.exe' -m py_compile app.py cfb.py crv_model.py support_optimizer.py
+
+      - name: Build one-folder application
+        shell: powershell
+        run: |
+          Set-Location 'crv_optimizer_win7_x86'
+          & 'C:\Python38-x86\python.exe' -m PyInstaller --noconfirm --clean --windowed --onedir --name 'CRV_Cut_Optimizer' app.py
+          Copy-Item 'README_BG.md' 'dist\CRV_Cut_Optimizer\README_BG.md'
+          Copy-Item 'BUILD_INFO_BG.txt' 'dist\CRV_Cut_Optimizer\BUILD_INFO_BG.txt'
+          Copy-Item 'VERSION.txt' 'dist\CRV_Cut_Optimizer\VERSION.txt'
+          Rename-Item 'dist\CRV_Cut_Optimizer' 'CRV_Cut_Optimizer_v1.6.1_Win7_x86'
+
+      - name: Verify x86 executable
+        shell: powershell
+        run: |
+          $exe = 'crv_optimizer_win7_x86\dist\CRV_Cut_Optimizer_v1.6.1_Win7_x86\CRV_Cut_Optimizer.exe'
+          $bytes = [System.IO.File]::ReadAllBytes($exe)
+          $peOffset = [BitConverter]::ToInt32($bytes, 0x3c)
+          $machine = [BitConverter]::ToUInt16($bytes, $peOffset + 4)
+          if ($machine -ne 0x014c) { throw "Expected PE32 x86 (0x014c), got 0x$($machine.ToString('x4'))" }
+          Write-Host 'Verified PE32 x86 executable.'
+
+      - name: Create ZIP and checksums
+        shell: powershell
+        run: |
+          Set-Location 'crv_optimizer_win7_x86\dist'
+          Compress-Archive -Path 'CRV_Cut_Optimizer_v1.6.1_Win7_x86' -DestinationPath 'CRV_Cut_Optimizer_v1.6.1_Win7_x86_one-folder.zip' -Force
+          $hash = (Get-FileHash 'CRV_Cut_Optimizer_v1.6.1_Win7_x86_one-folder.zip' -Algorithm SHA256).Hash.ToLower()
+          "$hash  CRV_Cut_Optimizer_v1.6.1_Win7_x86_one-folder.zip" | Set-Content 'CRV_Cut_Optimizer_v1.6.1_Win7_x86_SHA256.txt' -Encoding ascii
+          Get-ChildItem
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CRV_Cut_Optimizer_v1.6.1_Win7_x86
+          path: |
+            crv_optimizer_win7_x86/dist/CRV_Cut_Optimizer_v1.6.1_Win7_x86_one-folder.zip
+            crv_optimizer_win7_x86/dist/CRV_Cut_Optimizer_v1.6.1_Win7_x86_SHA256.txt
+          if-no-files-found: error
+          retention-days: 3
