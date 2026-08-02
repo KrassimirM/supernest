@@ -26,8 +26,8 @@ jobs:
           if ($parts.Count -ne 4) { throw "Expected 4 source chunks, found $($parts.Count)" }
           $b64 = ($parts | ForEach-Object { Get-Content $_.FullName -Raw }) -join ''
           [IO.File]::WriteAllBytes('win7_build\crv_optimizer_win7_x86_source.zip', [Convert]::FromBase64String($b64))
-          Expand-Archive -Path 'win7_build\crv_optimizer_win7_x86_source.zip' -DestinationPath '.' -Force
-          Rename-Item 'win7_x86_source' 'crv_optimizer_win7_x86'
+          New-Item -ItemType Directory -Path 'crv_optimizer_win7_x86' -Force | Out-Null
+          Expand-Archive -Path 'win7_build\crv_optimizer_win7_x86_source.zip' -DestinationPath 'crv_optimizer_win7_x86' -Force
 
       - name: Install Python 3.8.10 x86
         shell: powershell
