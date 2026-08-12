@@ -23,7 +23,7 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $parts = Get-ChildItem 'win7_build\\v175.b64.part*' | Sort-Object Name
-          if ($parts.Count -ne 2) { throw "Expected 2 source chunks, found $($parts.Count)" }
+          if ($parts.Count -ne 6) { throw "Expected 6 source chunks, found $($parts.Count)" }
           $b64 = ($parts | ForEach-Object { Get-Content $_.FullName -Raw }) -join ''
           [IO.File]::WriteAllBytes('win7_build\\v175_slim.zip', [Convert]::FromBase64String($b64))
           New-Item -ItemType Directory -Force -Path 'win7_build\\src' | Out-Null
