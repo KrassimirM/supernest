@@ -22,12 +22,33 @@ jobs:
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
-          $parts = Get-ChildItem 'win7_build\v179.b64.part*' | Sort-Object Name
-          if ($parts.Count -ne 2) { throw "Expected 2 source chunks, found $($parts.Count)" }
-          $b64 = ($parts | ForEach-Object { Get-Content $_.FullName -Raw }) -join ''
-          [IO.File]::WriteAllBytes('win7_build\v179_slim.zip', [Convert]::FromBase64String($b64))
+          $parts = @(
+            'win7_build\v179.b64.part00',
+            'win7_build\v179.b64.part01',
+            'win7_build\v179.b64.part02',
+            'win7_build\v179.b64.part03',
+            'win7_build\v179.b64.part04',
+            'win7_build\v179.b64.tail00',
+            'win7_build\v179.b64.tail01',
+            'win7_build\v179.b64.tail02a',
+            'win7_build\v179.b64.tail02b',
+            'win7_build\v179.b64.tail02c',
+            'win7_build\v179.b64.tail02d',
+            'win7_build\v179.b64.tail03',
+            'win7_build\v179.b64.tail04',
+            'win7_build\v179.b64.tail05',
+            'win7_build\v179.b64.tail06',
+            'win7_build\v179.b64.tail07'
+          )
+          foreach ($p in $parts) { if (-not (Test-Path $p)) { throw "Missing source chunk: $p" } }
+          $b64 = ($parts | ForEach-Object { Get-Content $_ -Raw }) -join ''
+          if ($b64.Length -ne 88956) { throw "Expected base64 length 88956, got $($b64.Length)" }
+          $zip = 'win7_build\v179_slim.zip'
+          [IO.File]::WriteAllBytes($zip, [Convert]::FromBase64String($b64))
+          $sourceHash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
+          if ($sourceHash -ne 'a18230901ba53c98153236d8d38c982e698ee3dca17c0b98d13973feb7743b98') { throw "Source ZIP SHA256 mismatch: $sourceHash" }
           New-Item -ItemType Directory -Force -Path 'win7_build\src' | Out-Null
-          Expand-Archive -Path 'win7_build\v179_slim.zip' -DestinationPath 'win7_build\src' -Force
+          Expand-Archive -Path $zip -DestinationPath 'win7_build\src' -Force
           if (-not (Test-Path 'win7_build\src\v179_slim\app.py')) { throw 'Source extraction failed: app.py not found.' }
 
       - name: Install Python 3.8.10 x86
